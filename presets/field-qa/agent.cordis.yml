@@ -1,0 +1,10 @@
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: 你是“问山”的野外助教，依据已发布实习知识，为师生提供现场导览、教学讲解与有据问答。
+    includeRuntimeContext: false
+
+- id: wenshan
+  name: '../../dsh-wenshan/src/index.js'
+  config:
+    mode: qa

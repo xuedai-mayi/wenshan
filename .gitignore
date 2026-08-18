@@ -1,0 +1,37 @@
+# Credentials and machine-local settings
+.env
+.env.*
+!.env.example
+/.claude/
+/.private/
+/.vscode/
+/.idea/
+
+# Dependencies and generated builds
+**/node_modules/
+**/dist/
+deepseek-harness-master/deepseek-harness-master/**/lib/
+**/*.tsbuildinfo
+**/__pycache__/
+**/*.py[cod]
+.pnpm-store/
+
+# Runtime state and test artifacts
+output/
+.playwright-cli/
+web/qa-shots/
+*.log
+coverage/
+tmp/
+
+# Local field materials and generated user knowledge
+data/photos/
+data/knowledge/
+
+# Third-party Wallpaper Engine source removed from the public package
+背景/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
