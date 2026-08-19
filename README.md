@@ -17,7 +17,6 @@
 - `dsh-wenshan-intake`：资料收录、知识图谱接口和浏览器页面插件。
 - `presets` 与 `wenshan.cordis.yml`：问山的 DSH preset 和产品挂载配置。
 
-上游社区建议插件仓库使用 [`dsh-plugin`](https://github.com/topics/dsh-plugin) topic。本仓库发布时会添加该 topic，方便 DSH 用户检索。
 
 ![问山主界面](docs/images/home.png)
 
