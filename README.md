@@ -123,29 +123,6 @@ web/                        独立界面源码及检索评测复用代码
 data/                       可公开的基础检索数据
 ```
 
-## 验证
-
-发布前运行：
-
-```powershell
-.\发布前检查.ps1
-```
-
-该脚本会构建 DSH 和独立前端，检查配置，运行只读工具冒烟测试和知识发布链路测试。应用启动后，可继续运行浏览器验收：
-
-```powershell
-py -3.11 -m pip install playwright
-py -3.11 -m playwright install chromium
-py -3.11 tools/test_wenshan_web.py
-```
-
-也可以单独执行：
-
-```powershell
-node dsh-wenshan/test-smoke.mjs
-node dsh-wenshan/test-product.mjs
-node tools/eval_qa.mjs
-```
 
 ## 技术说明
 
