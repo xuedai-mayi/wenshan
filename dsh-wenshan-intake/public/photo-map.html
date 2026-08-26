@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#edf1e8">
+  <title>照片地图｜问山：地理野外实习自成长智能助手</title>
+  <style>
+    :root{color:#22392c;background:#edf1e8;font-family:"Noto Sans SC","Microsoft YaHei",sans-serif;font-synthesis:none}
+    *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden}
+    body{background:#ecf0e6}
+    button{font:inherit;color:inherit}button:focus-visible,a:focus-visible{outline:2px solid #2c6a49;outline-offset:3px}
+    #map{position:fixed;inset:0;z-index:1;touch-action:none;cursor:grab}#map.dragging{cursor:grabbing}
+    #markers{position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+
+    .top{position:fixed;z-index:5;left:0;right:0;top:0;display:flex;align-items:center;height:67px;padding:0 24px;border-bottom:1px solid rgba(46,78,58,.12);background:linear-gradient(180deg,rgba(252,254,250,.94),rgba(247,250,243,.8));backdrop-filter:blur(10px)}
+    .brand,.back{pointer-events:auto;text-decoration:none}.brand{display:flex;align-items:center;gap:9px;color:#163c2d}.brand-mark{width:25px;height:25px}.brand b{font:650 21px/1 "Noto Serif SC","Songti SC",serif;letter-spacing:.09em}.brand span{margin-left:4px;color:#6f8574;font-size:12px}
+    .top-divider{width:1px;height:22px;margin:0 18px;background:rgba(38,68,50,.16)}.view-name{font:600 15px/1 "Noto Serif SC","Songti SC",serif;letter-spacing:.12em;color:#3c5847}
+    .dataset{margin-left:auto;display:flex;gap:8px;align-items:center;color:#5f7869;font-size:12px}.dataset b{color:#24402f;font-weight:600}.dataset i{width:5px;height:5px;border-radius:50%;background:#3f9a63;box-shadow:0 0 0 4px rgba(63,154,99,.14)}
+    .back{margin-left:24px;color:#3f6a51;font-size:12px}.back:hover{color:#16402c}
+
+    .daybar{position:fixed;z-index:5;left:22px;top:89px;display:flex;flex-wrap:wrap;gap:7px;max-width:min(560px,calc(100vw - 44px))}
+    .chip{display:inline-flex;align-items:center;gap:7px;padding:8px 12px;border:1px solid rgba(47,80,60,.16);border-radius:999px;background:rgba(255,255,255,.86);color:#35513f;font-size:12px;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(38,62,47,.08);backdrop-filter:blur(12px);transition:background .16s ease,transform .16s ease}
+    .chip:hover{background:#eef4ec;transform:translateY(-1px)}.chip.on{background:#1e4632;border-color:#1e4632;color:#f0f7f1;font-weight:650}
+    .chip i{width:7px;height:7px;border-radius:50%;background:var(--dot,#5f8a6c)}.chip small{color:inherit;opacity:.62;font-size:10px}
+    .chip.road{border-style:dashed}.chip.road svg{width:13px;height:13px}
+    .chip.play{background:rgba(44,106,73,.95);border-color:rgba(28,77,53,.35);color:#f0f8f2;font-weight:650}.chip.play:hover{background:#1c4d35}.chip.play svg{width:12px;height:12px}.chip.play.playing{background:#dfeee2;border-color:rgba(44,106,73,.4);color:#1c4028}
+    .compass{position:fixed;z-index:7;right:22px;bottom:76px;width:42px;height:42px;display:grid;place-items:center;border:1px solid rgba(47,80,60,.16);border-radius:13px;background:rgba(255,255,255,.94);box-shadow:0 12px 28px rgba(31,54,40,.14);color:#35513f;pointer-events:none}
+    .compass svg{width:22px;height:22px}
+
+    .cluster{position:absolute;left:0;top:0;pointer-events:auto;border:0;padding:0;background:transparent;cursor:pointer;transform:translate(-50%,-100%);transition:none;-webkit-tap-highlight-color:transparent}
+    .cluster .body{position:relative;display:block;animation:cluster-in .34s cubic-bezier(.24,1.24,.36,1) backwards}
+    @keyframes cluster-in{from{transform:scale(.5) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+    .cluster.stacked .body::before,.cluster.stacked .body::after{content:"";position:absolute;inset:3px;border-radius:15px;background:#ffffff;border:1px solid rgba(24,48,34,.14);box-shadow:0 6px 18px rgba(35,58,44,.18)}
+    .cluster.stacked .body::before{transform:rotate(-5.5deg) translate(-3px,1px)}
+    .cluster.stacked .body::after{transform:rotate(4deg) translate(3px,-1px)}
+    .cluster .frame{position:relative;z-index:1;display:block;width:var(--size,54px);height:var(--size,54px);border-radius:16px;border:2.5px solid #ffffff;background:#cfdcc9 center/cover no-repeat;box-shadow:0 10px 26px rgba(38,62,47,.26),0 2px 6px rgba(38,62,47,.16);transition:transform .18s ease,box-shadow .18s ease;overflow:hidden}
+    .cluster .frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:opacity .22s ease}
+    .cluster .frame img.swapping{opacity:.25}
+    .cluster .frame::after{content:"";position:absolute;inset:0;border-radius:13px;box-shadow:inset 0 0 0 1px rgba(20,40,28,.12)}
+    .cluster .tail{position:absolute;z-index:0;left:50%;bottom:-7px;width:13px;height:13px;transform:translateX(-50%) rotate(45deg);border-radius:3px;background:#ffffff;box-shadow:3px 3px 8px rgba(40,64,48,.2)}
+    .cluster .count{position:absolute;z-index:2;top:-8px;right:-9px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:grid;place-items:center;background:var(--day,#2d6b49);border:2px solid #ffffff;color:#fff;font-size:11px;font-weight:700;box-shadow:0 4px 10px rgba(35,58,44,.26)}
+    .cluster:hover .frame{transform:scale(1.07)}.cluster:active .frame{transform:scale(.97)}
+    .cluster.noimg .frame{display:grid;place-items:center;background:linear-gradient(150deg,#d9e6d2,#c2d4bd)}
+    .cluster.noimg .frame svg{width:46%;height:46%;color:#6d8f76;opacity:.9}
+    .cluster .label{position:absolute;left:50%;top:calc(100% + 9px);transform:translateX(-50%);max-width:150px;overflow:hidden;padding:3px 8px;border-radius:7px;border:1px solid rgba(46,78,58,.12);background:rgba(255,255,255,.95);color:#24402f;font-size:10.5px;line-height:1.35;white-space:nowrap;text-overflow:ellipsis;opacity:0;box-shadow:0 6px 18px rgba(35,58,44,.16);transition:opacity .16s ease;pointer-events:none}
+    .cluster:hover .label,.cluster.labeled .label{opacity:1}
+
+    .controls{position:fixed;z-index:7;right:22px;bottom:22px;display:flex;gap:7px}
+    .control{display:grid;place-items:center;width:42px;height:42px;border:1px solid rgba(47,80,60,.16);border-radius:13px;background:rgba(255,255,255,.94);box-shadow:0 12px 28px rgba(31,54,40,.14);color:#35513f;font:500 20px/1 "Noto Sans SC",sans-serif;cursor:pointer;transition:transform .14s ease,background .14s ease}
+    .control:hover{background:#e4efe6;transform:translateY(-1px)}.control:active{transform:scale(.96)}.control svg{width:18px;height:18px}
+    .control.on{background:#1e4632;border-color:#1e4632;color:#f2f8f3}.control.on:hover{background:#173a29}
+    .caption{position:fixed;z-index:8;left:50%;bottom:110px;transform:translateX(-50%) translateY(16px);text-align:center;pointer-events:none;opacity:0;transition:opacity .45s ease,transform .45s ease}
+    .caption.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .caption b{display:block;font:650 32px/1.25 "Noto Serif SC","Songti SC",serif;letter-spacing:.08em;color:#163324;text-shadow:0 2px 24px rgba(255,255,255,.96),0 0 3px rgba(255,255,255,.85)}
+    .caption span{display:block;margin-top:7px;font-size:13px;letter-spacing:.04em;color:#44604f;text-shadow:0 1px 14px rgba(255,255,255,.92)}
+    .guide{position:fixed;z-index:4;left:22px;bottom:22px;display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid rgba(46,78,58,.12);border-radius:999px;background:rgba(255,255,255,.82);color:#5b7263;font-size:11px;backdrop-filter:blur(15px)}
+    .guide kbd{padding:2px 5px;border:1px solid rgba(40,70,52,.18);border-radius:4px;background:rgba(31,64,44,.06);color:#33503f;font:10px/1 "SFMono-Regular",Consolas,monospace}
+
+    .banner{position:fixed;z-index:8;left:50%;top:81px;transform:translateX(-50%);max-width:min(600px,calc(100vw - 32px));padding:10px 16px;border:1px solid rgba(196,158,74,.45);border-radius:12px;background:rgba(253,246,224,.96);color:#77591c;font-size:12px;line-height:1.6;box-shadow:0 16px 44px rgba(93,71,22,.16);backdrop-filter:blur(10px)}
+    .banner code{padding:1px 6px;border-radius:5px;background:rgba(0,0,0,.07);font-family:Consolas,monospace;font-size:11px}
+    .loading{position:fixed;z-index:8;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;gap:10px;min-width:224px;padding:14px 16px;border:1px solid rgba(46,78,58,.14);border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 24px 68px rgba(31,54,40,.18);color:#33503f;font-size:12px}
+    .loading-bars{display:grid;grid-template-columns:1.1fr .8fr .55fr;gap:5px}.loading-bars i{height:3px;border-radius:2px;background:#4c9b6d;transform-origin:left;animation:loadbar 1s ease-in-out infinite}.loading-bars i:nth-child(2){animation-delay:.12s}.loading-bars i:nth-child(3){animation-delay:.24s}
+    @keyframes loadbar{50%{transform:scaleX(.35);opacity:.35}}.error{color:#a8442f}.hidden{display:none!important}
+
+    .sheet{position:fixed;z-index:9;left:50%;bottom:0;transform:translate(-50%,105%);width:min(860px,100vw);max-height:min(58vh,520px);display:flex;flex-direction:column;border:1px solid rgba(46,78,58,.14);border-radius:22px 22px 0 0;background:linear-gradient(160deg,rgba(255,255,255,.97),rgba(246,250,244,.97));box-shadow:0 -18px 70px rgba(30,52,39,.22);backdrop-filter:blur(14px);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+    .sheet.show{transform:translate(-50%,0)}
+    .sheet-grip{flex:none;width:40px;height:4px;margin:9px auto 2px;border-radius:2px;background:rgba(43,74,55,.22)}
+    .sheet-head{flex:none;display:flex;align-items:baseline;gap:10px;padding:6px 20px 4px}
+    .sheet-head h2{margin:0;color:#1c3428;font:600 17px/1.4 "Noto Serif SC","Songti SC",serif}
+    .sheet-head .meta{color:#6d8576;font-size:11px}
+    .sheet-close{margin-left:auto;flex:none;width:28px;height:28px;border:0;border-radius:50%;background:rgba(31,64,44,.06);color:#4b6553;font-size:17px;line-height:1;cursor:pointer}.sheet-close:hover{background:rgba(44,106,73,.14);color:#16402c}
+    .sheet-body{overflow:auto;overscroll-behavior:contain;padding:4px 14px 18px}
+    .spot-group{margin:8px 6px 4px}
+    .spot-title{display:flex;align-items:baseline;gap:8px;margin:0 2px 8px}
+    .spot-title b{color:#24402f;font-size:13.5px;font-weight:600}
+    .spot-title span{color:#78927f;font-size:10.5px}
+    .spot-title i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--day,#3f9a63);align-self:center}
+    .spot-link{margin-left:auto;flex:none;padding:4px 9px;border:1px solid rgba(44,106,73,.28);border-radius:999px;background:rgba(44,106,73,.08);color:#256043;font-size:10.5px;text-decoration:none;transition:background .15s ease}
+    .spot-link:hover{background:rgba(44,106,73,.16)}
+    .strip{display:flex;gap:9px;overflow-x:auto;overscroll-behavior-x:contain;padding:2px 2px 8px;scroll-snap-type:x proximity}
+    .shot{flex:none;width:128px;border:0;padding:0;background:transparent;cursor:pointer;text-align:left;scroll-snap-align:start;-webkit-tap-highlight-color:transparent}
+    .shot .ph{position:relative;display:block;width:128px;height:96px;border-radius:12px;overflow:hidden;background:linear-gradient(150deg,#dfe9da,#cbdac6);box-shadow:0 6px 16px rgba(37,60,45,.18)}
+    .shot .ph img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}
+    .shot:hover .ph img{transform:scale(1.05)}
+    .shot .ph .t{position:absolute;right:5px;bottom:5px;padding:2px 6px;border-radius:6px;background:rgba(9,22,14,.6);color:#f0f7f1;font-size:9.5px}
+    .shot .ph.noimg{display:grid;place-items:center}.shot .ph.noimg svg{width:34px;height:34px;color:#6f9179;opacity:.85}
+    .shot .cap{margin:6px 2px 0;color:#4a6353;font-size:11px;line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    .lightbox{position:fixed;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(240,245,238,.92);backdrop-filter:blur(18px)}
+    .lightbox.show{display:flex}
+    .lb-stage{display:flex;flex-direction:column;align-items:center;gap:14px;max-width:min(92vw,720px)}
+    .lb-stage img{max-width:100%;max-height:70vh;border-radius:14px;box-shadow:0 30px 90px rgba(28,48,36,.35);background:#dfe8dc}
+    .lb-noimg{display:grid;place-items:center;width:min(80vw,430px);height:300px;border-radius:14px;background:linear-gradient(150deg,#d5e3cf,#bcd0b8)}
+    .lb-noimg svg{width:64px;height:64px;color:#5f8168}
+    .lb-cap{text-align:center;color:#1e352a;font-size:14px}.lb-cap small{display:block;margin-top:5px;color:#647c6c;font-size:11.5px}
+    .lb-btn{position:fixed;top:50%;transform:translateY(-50%);width:46px;height:46px;border:1px solid rgba(43,74,55,.18);border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.92);color:#2b4736;font-size:20px;cursor:pointer;box-shadow:0 10px 30px rgba(31,54,40,.16)}
+    .lb-btn:hover{background:#e2eee4}.lb-prev{left:max(14px,calc(50vw - 430px))}.lb-next{right:max(14px,calc(50vw - 430px))}
+    .lb-close{position:fixed;right:20px;top:20px;width:40px;height:40px;border:1px solid rgba(43,74,55,.18);border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.92);color:#2b4736;font-size:19px;cursor:pointer;box-shadow:0 10px 30px rgba(31,54,40,.16)}
+
+    @media(max-width:760px){
+      .top{height:59px;padding:0 14px}.brand span,.top-divider,.dataset,.back{display:none}.brand b{font-size:19px}.view-name{margin-left:auto;font-size:14px}
+      .daybar{left:12px;top:71px;max-width:calc(100vw - 24px)}
+      .chip{padding:7px 10px;font-size:11px}
+      .guide{left:12px;bottom:12px;font-size:10px}.guide span{display:none}
+      .controls{right:12px;bottom:12px}.control{width:38px;height:38px;border-radius:12px}
+      .compass{right:12px;bottom:62px;width:38px;height:38px}
+      .sheet{max-height:62vh}.lb-prev{left:8px}.lb-next{right:8px}
+      .banner{top:66px}
+      .caption{bottom:86px}.caption b{font-size:23px}.caption span{font-size:11px}
+    }
+    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <canvas id="map" aria-label="实习区照片地图"></canvas>
+  <div id="markers"></div>
+
+  <header class="top">
+    <a class="brand" href="/" aria-label="返回问山">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M4 31 15.5 12l5.7 8.1L26.4 13 36 31H4Z" fill="#a9d1af"/><path d="m12.3 31 8.9-10.9 3.1 4.3 3.4-4.4 5.9 11H12.3Z" fill="#527c5c"/></svg>
+      <b>问山</b><span>地理野外实习自成长智能助手</span>
+    </a>
+    <i class="top-divider"></i><div class="view-name">照片地图</div>
+    <div class="dataset"><i></i><b id="stat">载入中</b><span>照片与讲解点</span></div>
+    <a class="back" href="/wenshan/knowledge-galaxy">知识星系</a>
+    <a class="back" href="/wenshan/knowledge-graph">知识图谱</a>
+    <a class="back" href="/">返回问山</a>
+  </header>
+
+  <nav class="daybar" id="daybar" aria-label="按实习日筛选照片"></nav>
+
+  <div class="guide"><kbd>拖动</kbd><span>平移</span><kbd>滚轮</kbd><span>缩放</span><kbd>点击相片组</kbd><span>展开照片</span></div>
+  <div class="compass" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 3.2 15 12l-3 8.8L9 12Z" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><path d="M12 3.2 15 12H9Z" fill="#e0664d"/><path d="M9 12h6l-3 8.8Z" fill="#9db3a3" opacity=".9"/><text x="12" y="2.6" text-anchor="middle" font-size="4.6" fill="currentColor" font-family="system-ui">N</text></svg>
+  </div>
+  <div class="caption" id="caption" aria-hidden="true"><b></b><span></span></div>
+
+  <div class="controls">
+    <button class="control hidden" id="terrain-toggle" type="button" title="地形晕渲" aria-label="切换地形底图">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 18.5 9.2 8.6l3.2 4.6L15.4 9 21 18.5H3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="m7.4 12.4 1.8-1.6 1.7 1.9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="control" id="zoom-in" type="button" title="放大" aria-label="放大">+</button>
+    <button class="control" id="zoom-out" type="button" title="缩小" aria-label="缩小">−</button>
+    <button class="control" id="fit" type="button" title="查看全图" aria-label="查看全图">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+
+  <div class="banner hidden" id="banner">照片缩略图文件尚未生成（<code>data/photos/</code> 为空）。运行 <code>更新数据.bat</code> 后刷新本页，即可看到照片；当前先以占位图标显示位置与说明。</div>
+  <div class="loading" id="loading"><span>正在整理照片与位置</span><div class="loading-bars" aria-hidden="true"><i></i><i></i><i></i></div></div>
+
+  <section class="sheet" id="sheet" role="dialog" aria-label="照片列表">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <div class="sheet-head">
+      <h2 id="sheet-title"></h2><span class="meta" id="sheet-meta"></span>
+      <button class="sheet-close" id="sheet-close" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="sheet-body" id="sheet-body"></div>
+  </section>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="查看大图">
+    <button class="lb-close" id="lb-close" type="button" aria-label="关闭大图">×</button>
+    <button class="lb-btn lb-prev" id="lb-prev" type="button" aria-label="上一张">‹</button>
+    <button class="lb-btn lb-next" id="lb-next" type="button" aria-label="下一张">›</button>
+    <figure class="lb-stage" id="lb-stage"></figure>
+  </div>
+
+  <script>
+    (() => {
+      const DAY_COLORS = ['#e2a13c', '#63bd88', '#5aa7e0', '#d97b8f', '#b08fe0', '#58c2b4', '#cf8a54']
+      const MOUNTAIN_SVG = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 18 9.2 8.5l3.1 4.4L15.2 9 21 18H3Z" fill="currentColor"/></svg>'
+      const canvas = document.querySelector('#map')
+      const markerHost = document.querySelector('#markers')
+      const loading = document.querySelector('#loading')
+      const stat = document.querySelector('#stat')
+      const daybar = document.querySelector('#daybar')
+      const banner = document.querySelector('#banner')
+      const sheet = document.querySelector('#sheet')
+      const sheetTitle = document.querySelector('#sheet-title')
+      const sheetMeta = document.querySelector('#sheet-meta')
+      const sheetBody = document.querySelector('#sheet-body')
+      const lightbox = document.querySelector('#lightbox')
+      const lbStage = document.querySelector('#lb-stage')
+      const ctx = canvas.getContext('2d')
+
+      let data = null
+      let spots = []                 // 全部有坐标的照片点
+      let visibleSpots = []
+      let clusters = []
+      const markerPool = new Map()   // clusterKey -> element
+      let dayFilter = 'all'
+      let photoFilesMissing = false
+      let gallery = []               // 灯箱序列
+      let galleryIndex = 0
+
+      // ———— 投影与视图 ————
+      // 局部等距圆柱：经度按中纬度余弦缩放，北向朝上。world 单位 ≈ 度。
+      let lon0 = 0, lat0 = 0, kx = 1
+      const view = { scale: 1, tx: 0, ty: 0, min: 1, max: 1, fitScale: 1 }
+      const W = () => window.innerWidth
+      const H = () => window.innerHeight
+      const project = c => [(c[0] - lon0) * kx, lat0 - c[1]]
+      const toScreen = w => [w[0] * view.scale + view.tx, w[1] * view.scale + view.ty]
+      const fromScreen = s => [(s[0] - view.tx) / view.scale, (s[1] - view.ty) / view.scale]
+
+      function fitView(pad = 90) {
+        const b = data.bounds
+        const w0 = project([b[0], b[3]])   // 左上（西北）
+        const w1 = project([b[2], b[1]])   // 右下（东南）
+        const spanX = w1[0] - w0[0], spanY = w1[1] - w0[1]
+        const scale = Math.min((W() - pad * 2) / spanX, (H() - pad * 2) / spanY)
+        view.fitScale = scale
+        view.min = scale * .7
+        view.max = scale * 46
+        setView(scale, W() / 2 - (w0[0] + spanX / 2) * scale, H() / 2 - (w0[1] + spanY / 2) * scale)
+      }
+      function setView(scale, tx, ty) {
+        view.scale = Math.max(view.min, Math.min(view.max, scale))
+        view.tx = tx
+        view.ty = ty
+        requestDraw()
+        scheduleRecluster()
+      }
+      function zoomAt(sx, sy, factor) {
+        const w = fromScreen([sx, sy])
+        const scale = Math.max(view.min, Math.min(view.max, view.scale * factor))
+        setView(scale, sx - w[0] * scale, sy - w[1] * scale)
+      }
+      let anim = null
+      function flyTo(targetScale, wx, wy, ms = 320) {
+        if (anim) cancelAnimationFrame(anim.frame)
+        const from = { scale: view.scale, tx: view.tx, ty: view.ty }
+        const scale = Math.max(view.min, Math.min(view.max, targetScale))
+        const to = { scale, tx: W() / 2 - wx * scale, ty: H() / 2 - wy * scale }
+        const t0 = performance.now()
+        const ease = t => 1 - Math.pow(1 - t, 3)
+        const step = () => {
+          const t = Math.min(1, (performance.now() - t0) / ms)
+          const k = ease(t)
+          view.scale = from.scale + (to.scale - from.scale) * k
+          view.tx = from.tx + (to.tx - from.tx) * k
+          view.ty = from.ty + (to.ty - from.ty) * k
+          requestDraw()
+          positionMarkers()
+          if (t < 1) anim.frame = requestAnimationFrame(step)
+          else { anim = null; recluster() }
+        }
+        anim = { frame: requestAnimationFrame(step) }
+      }
+
+      // ———— 底图绘制（Path2D 世界坐标缓存） ————
+      const paths = {}
+      function ringPath(path, ring) {
+        for (let i = 0; i < ring.length; i++) {
+          const w = project(ring[i])
+          if (i === 0) path.moveTo(w[0], w[1])
+          else path.lineTo(w[0], w[1])
+        }
+        path.closePath()
+      }
+      function linePath(path, line) {
+        for (let i = 0; i < line.length; i++) {
+          const w = project(line[i])
+          if (i === 0) path.moveTo(w[0], w[1])
+          else path.lineTo(w[0], w[1])
+        }
+      }
+      function buildPaths() {
+        const L = data.layers
+        const polys = feats => {
+          const path = new Path2D()
+          for (const f of feats) {
+            const g = f.g
+            const sets = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : []
+            for (const rings of sets) for (const ring of rings) ringPath(path, ring)
+          }
+          return path
+        }
+        const lines = feats => {
+          const path = new Path2D()
+          for (const f of feats) {
+            const g = f.g
+            const sets = g.type === 'LineString' ? [g.coordinates] : g.type === 'MultiLineString' ? g.coordinates : []
+            for (const line of sets) linePath(path, line)
+          }
+          return path
+        }
+        paths.water = polys(L.water)
+        paths.rivers = lines(L.rivers)
+        paths.boundary = polys(L.boundary)
+        paths.roads = {}
+        for (const rank of ['hw', 'major', 'road', 'minor']) {
+          paths.roads[rank] = lines(L.roads.filter(f => (f.p && f.p.r) === rank))
+        }
+      }
+      let drawFrame = 0
+      function requestDraw() {
+        if (drawFrame) return
+        drawFrame = requestAnimationFrame(() => { drawFrame = 0; draw() })
+      }
+      function draw() {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2)
+        if (canvas.width !== W() * dpr || canvas.height !== H() * dpr) {
+          canvas.width = W() * dpr
+          canvas.height = H() * dpr
+          canvas.style.width = W() + 'px'
+          canvas.style.height = H() + 'px'
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        const grad = ctx.createRadialGradient(W() * .74, -H() * .1, 60, W() * .74, -H() * .1, H() * 1.15)
+        grad.addColorStop(0, '#f6faf1')
+        grad.addColorStop(1, '#e7ede0')
+        ctx.fillStyle = grad
+        ctx.fillRect(0, 0, W(), H())
+        const s = view.scale
+        ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * view.tx, dpr * view.ty)
+
+        if (terrain && terrainOn) {
+          ctx.imageSmoothingEnabled = true
+          ctx.drawImage(terrain.img, terrain.rect[0], terrain.rect[1], terrain.rect[2], terrain.rect[3])
+        }
+
+        ctx.fillStyle = '#b3d2e2'
+        ctx.fill(paths.water)
+        ctx.strokeStyle = '#8fb6cb'
+        ctx.lineWidth = 1 / s
+        ctx.stroke(paths.water)
+        ctx.strokeStyle = 'rgba(110,160,185,.85)'
+        ctx.lineWidth = 1.1 / s
+        ctx.stroke(paths.rivers)
+
+        const roadStyle = { hw: ['#eebd63', 2.6], major: ['#ffffff', 2.2], road: ['#ffffff', 1.6], minor: ['rgba(255,255,255,.72)', 1.1] }
+        for (const rank of ['minor', 'road', 'major', 'hw']) {
+          ctx.strokeStyle = roadStyle[rank][0]
+          ctx.lineWidth = roadStyle[rank][1] / s
+          ctx.stroke(paths.roads[rank])
+        }
+
+        ctx.setLineDash([7 / s, 5 / s])
+        ctx.strokeStyle = 'rgba(104,134,110,.8)'
+        ctx.lineWidth = 1.5 / s
+        ctx.stroke(paths.boundary)
+        ctx.setLineDash([])
+
+        drawRoute(s)
+
+        // 山峰与地名：屏幕空间绘制，防止字体被缩放
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        const zoomRatio = view.scale / view.fitScale
+        const drawnLabels = new Set()   // 山峰/地名图层有重名要素，统一按名称去重防止标签叠字
+        if (zoomRatio > 1.5) {
+          ctx.font = '10.5px "Noto Sans SC","Microsoft YaHei",sans-serif'
+          ctx.textAlign = 'center'
+          for (const peak of data.layers.peaks) {
+            if (peak.n) {
+              if (drawnLabels.has(peak.n)) continue
+              drawnLabels.add(peak.n)
+            }
+            const p = toScreen(project([peak.x, peak.y]))
+            if (p[0] < -30 || p[1] < -30 || p[0] > W() + 30 || p[1] > H() + 30) continue
+            ctx.fillStyle = '#9b8557'
+            ctx.beginPath()
+            ctx.moveTo(p[0], p[1] - 4)
+            ctx.lineTo(p[0] - 4, p[1] + 3)
+            ctx.lineTo(p[0] + 4, p[1] + 3)
+            ctx.closePath()
+            ctx.fill()
+            if (zoomRatio > 2.6 && peak.n) {
+              ctx.lineWidth = 3
+              ctx.strokeStyle = 'rgba(255,255,255,.88)'
+              ctx.strokeText(peak.n, p[0], p[1] + 15)
+              ctx.fillStyle = '#5c6b52'
+              ctx.fillText(peak.n, p[0], p[1] + 15)
+            }
+          }
+        }
+        if (zoomRatio > 4) {
+          ctx.font = '11px "Noto Sans SC","Microsoft YaHei",sans-serif'
+          ctx.textAlign = 'center'
+          for (const place of data.layers.places) {
+            if (place.n) {
+              if (drawnLabels.has(place.n)) continue
+              drawnLabels.add(place.n)
+            }
+            const p = toScreen(project([place.x, place.y]))
+            if (p[0] < -40 || p[1] < -40 || p[0] > W() + 40 || p[1] > H() + 40) continue
+            ctx.fillStyle = 'rgba(90,116,98,.9)'
+            ctx.beginPath()
+            ctx.arc(p[0], p[1], 2.2, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.lineWidth = 3
+            ctx.strokeStyle = 'rgba(255,255,255,.85)'
+            ctx.strokeText(place.n, p[0], p[1] - 8)
+            ctx.fillStyle = '#42584a'
+            ctx.fillText(place.n, p[0], p[1] - 8)
+          }
+        }
+
+        drawRouteStops()
+        drawPlayPulse()
+        drawScaleBar()
+        if (routeAnimating()) scheduleRouteFrame()
+      }
+
+      // ———— 地形晕渲底图 ————
+      let terrain = null
+      let terrainOn = true
+      async function loadTerrain() {
+        try {
+          const metaResponse = await fetch('/wenshan/assets/terrain.json', { cache: 'no-store' })
+          if (!metaResponse.ok) return
+          const meta = await metaResponse.json()
+          const img = new Image()
+          img.src = '/wenshan/assets/terrain.png'
+          await img.decode()
+          const topLeft = project([meta.bounds[0], meta.bounds[3]])
+          const bottomRight = project([meta.bounds[2], meta.bounds[1]])
+          terrain = { img, rect: [topLeft[0], topLeft[1], bottomRight[0] - topLeft[0], bottomRight[1] - topLeft[1]] }
+          const toggle = document.querySelector('#terrain-toggle')
+          toggle.classList.remove('hidden')
+          toggle.classList.add('on')
+          requestDraw()
+        } catch {}
+      }
+      document.querySelector('#terrain-toggle').addEventListener('click', () => {
+        terrainOn = !terrainOn
+        document.querySelector('#terrain-toggle').classList.toggle('on', terrainOn)
+        requestDraw()
+      })
+
+      // ———— 当日路线：平滑曲线 + 流动虚线 + 序号站点 ————
+      const routeDay = () => dayFilter === 'all' ? null : data.days.find(day => day.short === dayFilter)
+      const routePoints = () => {
+        const day = routeDay()
+        if (!day) return []
+        return [...day.points].sort((a, b) => a.n - b.n).map(point => ({ ...point, w: project(point.coord) }))
+      }
+      const routeAnimating = () => Boolean(routeDay()) || Boolean(playPulse)
+      let routeFrameTimer = 0
+      function scheduleRouteFrame() {
+        if (routeFrameTimer) return
+        routeFrameTimer = setTimeout(() => { routeFrameTimer = 0; requestDraw() }, 50)
+      }
+      function smoothPath(points) {
+        // 中点二次贝塞尔：折线平滑但严格经过站点邻域
+        ctx.beginPath()
+        ctx.moveTo(points[0].w[0], points[0].w[1])
+        for (let i = 1; i < points.length - 1; i++) {
+          const midX = (points[i].w[0] + points[i + 1].w[0]) / 2
+          const midY = (points[i].w[1] + points[i + 1].w[1]) / 2
+          ctx.quadraticCurveTo(points[i].w[0], points[i].w[1], midX, midY)
+        }
+        const last = points[points.length - 1]
+        ctx.lineTo(last.w[0], last.w[1])
+      }
+      let routeProgress = null      // null=完整路线；数值=回放中已生长的段数
+      function revealPoints(points) {
+        if (routeProgress == null || routeProgress >= points.length - 1) return points
+        const k = Math.floor(routeProgress)
+        const t = routeProgress - k
+        const partial = points.slice(0, k + 1)
+        const a = points[k].w
+        const b = points[Math.min(k + 1, points.length - 1)].w
+        partial.push({ w: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t] })
+        return partial
+      }
+      function drawRoute(s) {
+        const points = revealPoints(routePoints())
+        if (points.length < 2) return
+        const day = routeDay()
+        const color = DAY_COLORS[day.dayIndex % DAY_COLORS.length]
+        smoothPath(points)
+        ctx.strokeStyle = 'rgba(255,255,255,.78)'
+        ctx.lineWidth = 6.5 / s
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.stroke()
+        smoothPath(points)
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2.1 / s
+        ctx.setLineDash([9 / s, 7 / s])
+        ctx.lineDashOffset = -((performance.now() / 40) / s) % (16 / s)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+      function drawRouteStops() {
+        const points = routePoints()
+        if (points.length < 2) return
+        const day = routeDay()
+        const color = DAY_COLORS[day.dayIndex % DAY_COLORS.length]
+        const limit = routeProgress == null ? Infinity : routeProgress + 1e-6
+        ctx.font = '650 9.5px "Noto Sans SC",system-ui,sans-serif'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        for (let index = 0; index < points.length; index++) {
+          if (index > limit) break
+          const point = points[index]
+          const p = toScreen(point.w)
+          if (p[0] < -20 || p[1] < -20 || p[0] > W() + 20 || p[1] > H() + 20) continue
+          ctx.beginPath()
+          ctx.arc(p[0], p[1], 8, 0, Math.PI * 2)
+          ctx.fillStyle = color
+          ctx.fill()
+          ctx.lineWidth = 2
+          ctx.strokeStyle = 'rgba(247,252,247,.95)'
+          ctx.stroke()
+          ctx.fillStyle = '#fff'
+          ctx.fillText(String(point.n), p[0], p[1] + .5)
+        }
+        ctx.textBaseline = 'alphabetic'
+      }
+
+      // ———— 路线播放 ————
+      let playToken = 0
+      let playPulse = null       // { w:[x,y], t0 }
+      function drawPlayPulse() {
+        if (!playPulse) return
+        const t = (performance.now() - playPulse.t0) / 1100
+        const p = toScreen(playPulse.w)
+        for (const phase of [t % 1, (t + .5) % 1]) {
+          ctx.beginPath()
+          ctx.arc(p[0], p[1], 12 + phase * 34, 0, Math.PI * 2)
+          ctx.strokeStyle = 'rgba(44,106,73,' + (0.45 * (1 - phase)).toFixed(3) + ')'
+          ctx.lineWidth = 2
+          ctx.stroke()
+        }
+      }
+      const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+      const captionBox = document.querySelector('#caption')
+      function showCaption(day) {
+        const [month, dayNum] = day.short.split('.')
+        captionBox.querySelector('b').textContent = month + '月' + dayNum + '日'
+        captionBox.querySelector('span').textContent = day.route || ''
+        captionBox.classList.add('show')
+      }
+      const hideCaption = () => captionBox.classList.remove('show')
+
+      /** 回放全程：逐天飞行、路线生长、日期字幕，任何交互立即打断。 */
+      async function playAll() {
+        const token = ++playToken
+        closeSheet()
+        document.querySelectorAll('.chip.play').forEach(el => el.classList.add('playing'))
+        for (const day of data.days) {
+          if (playToken !== token) break
+          if (!day.points.length) continue
+          dayFilter = day.short
+          renderDaybar()
+          recluster()
+          showCaption(day)
+          const points = routePoints()
+          const xs = points.map(point => point.w[0])
+          const ys = points.map(point => point.w[1])
+          const cx = (Math.min(...xs) + Math.max(...xs)) / 2
+          const cy = (Math.min(...ys) + Math.max(...ys)) / 2
+          const spanX = Math.max(1e-6, Math.max(...xs) - Math.min(...xs))
+          const spanY = Math.max(1e-6, Math.max(...ys) - Math.min(...ys))
+          const target = Math.min(view.max * .75, Math.max(view.fitScale * 1.4,
+            Math.min((W() * .56) / spanX, (H() * .44) / spanY)))
+          routeProgress = 0
+          flyTo(target, cx, cy, 780)
+          await sleep(840)
+          if (playToken !== token) break
+          const segments = Math.max(1, points.length - 1)
+          const duration = Math.min(3000, 620 * segments)
+          const start = performance.now()
+          while (playToken === token) {
+            const t = (performance.now() - start) / duration
+            routeProgress = Math.min(segments, t * segments)
+            const reached = Math.min(points.length - 1, Math.ceil(routeProgress))
+            if (!playPulse || playPulse.idx !== reached) playPulse = { w: points[reached].w, t0: performance.now(), idx: reached }
+            requestDraw()
+            if (t >= 1) break
+            await sleep(24)
+          }
+          routeProgress = null
+          if (playToken !== token) break
+          await sleep(1100)
+        }
+        const finished = playToken === token
+        routeProgress = null
+        playPulse = null
+        hideCaption()
+        document.querySelectorAll('.chip.play').forEach(el => el.classList.remove('playing'))
+        if (finished) {
+          playToken++
+          dayFilter = 'all'
+          renderDaybar()
+          recluster()
+          fitView()
+        }
+        requestDraw()
+      }
+
+      async function playRoute() {
+        const points = routePoints()
+        if (points.length < 2) return
+        const token = ++playToken
+        closeSheet()
+        document.querySelectorAll('.chip.play').forEach(el => el.classList.add('playing'))
+        const targetScale = Math.min(view.max * .7, view.fitScale * 7)
+        for (const point of points) {
+          if (playToken !== token) break
+          playPulse = { w: point.w, t0: performance.now() }
+          flyTo(Math.max(view.scale, targetScale), point.w[0], point.w[1], 620)
+          for (const element of markerPool.values()) {
+            element.classList.toggle('labeled', element.__cluster.spots.some(spot => spot.id === point.id))
+          }
+          requestDraw()
+          await sleep(1500)
+        }
+        if (playToken === token) playToken++
+        playPulse = null
+        for (const element of markerPool.values()) element.classList.remove('labeled')
+        document.querySelectorAll('.chip.play').forEach(el => el.classList.remove('playing'))
+        requestDraw()
+      }
+      const stopPlay = () => {
+        playToken++
+        hideCaption()
+        if (playPulse || routeProgress != null) {
+          playPulse = null
+          routeProgress = null
+          requestDraw()
+        }
+      }
+
+      // ———— 比例尺 ————
+      function drawScaleBar() {
+        const metersPerPx = 110540 / view.scale
+        const target = 96 * metersPerPx
+        const pow = Math.pow(10, Math.floor(Math.log10(target)))
+        const nice = [1, 2, 5, 10].map(k => k * pow).find(v => v >= target) || target
+        const px = nice / metersPerPx
+        const label = nice >= 1000 ? (nice / 1000) + ' km' : nice + ' m'
+        const x = 24
+        const y = H() - 66
+        ctx.strokeStyle = 'rgba(255,255,255,.9)'
+        ctx.lineWidth = 4
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(x, y - 4); ctx.lineTo(x, y); ctx.lineTo(x + px, y); ctx.lineTo(x + px, y - 4)
+        ctx.stroke()
+        ctx.strokeStyle = 'rgba(60,85,70,.95)'
+        ctx.lineWidth = 1.6
+        ctx.beginPath()
+        ctx.moveTo(x, y - 4); ctx.lineTo(x, y); ctx.lineTo(x + px, y); ctx.lineTo(x + px, y - 4)
+        ctx.stroke()
+        ctx.font = '10px "Noto Sans SC",system-ui,sans-serif'
+        ctx.textAlign = 'center'
+        ctx.lineWidth = 3
+        ctx.strokeStyle = 'rgba(255,255,255,.88)'
+        ctx.strokeText(label, x + px / 2, y - 9)
+        ctx.fillStyle = '#3f584a'
+        ctx.fillText(label, x + px / 2, y - 9)
+      }
+
+      // ———— 照片聚簇（世界坐标网格，聚合半径≈屏幕 92px） ————
+      let reclusterTimer = 0
+      function scheduleRecluster() {
+        if (reclusterTimer) return
+        reclusterTimer = setTimeout(() => { reclusterTimer = 0; recluster() }, 60)
+      }
+      function recluster() {
+        visibleSpots = spots.filter(spot => dayFilter === 'all' || spot.short === dayFilter)
+        const cell = 92 / view.scale
+        const grid = new Map()
+        for (const spot of visibleSpots) {
+          const key = Math.floor(spot.w[0] / cell) + ':' + Math.floor(spot.w[1] / cell)
+          if (!grid.has(key)) grid.set(key, [])
+          grid.get(key).push(spot)
+        }
+        clusters = [...grid.values()].map(group => {
+          const photoCount = group.reduce((sum, spot) => sum + spot.photos.length, 0)
+          const wx = group.reduce((sum, spot) => sum + spot.w[0], 0) / group.length
+          const wy = group.reduce((sum, spot) => sum + spot.w[1], 0) / group.length
+          const cover = group.find(spot => spot.photos.length) || group[0]
+          return {
+            key: group.map(spot => spot.id).sort().join('|'),
+            spots: group, wx, wy, photoCount,
+            cover: cover.photos[0] || null,
+            day: cover.dayIndex,
+          }
+        })
+        renderMarkers()
+      }
+      function markerElement(cluster) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'cluster'
+        button.style.setProperty('--day', DAY_COLORS[cluster.day % DAY_COLORS.length])
+        const single = cluster.spots.length === 1
+        button.style.setProperty('--size', (single ? 54 : Math.min(74, 56 + cluster.spots.length * 4)) + 'px')
+        if (cluster.photoCount > 1) button.classList.add('stacked')
+        button.title = single
+          ? cluster.spots[0].title + '（' + cluster.photoCount + ' 张照片）'
+          : cluster.spots.length + ' 个讲解点 · ' + cluster.photoCount + ' 张照片'
+        const body = document.createElement('span')
+        body.className = 'body'
+        const frame = document.createElement('span')
+        frame.className = 'frame'
+        const allPhotos = cluster.spots.flatMap(spot => spot.photos).slice(0, 6)
+        if (cluster.cover) {
+          const img = document.createElement('img')
+          img.alt = ''
+          img.loading = 'lazy'
+          img.decoding = 'async'
+          img.src = '/wenshan/photos/' + encodeURIComponent(cluster.cover.id) + '.jpg'
+          img.addEventListener('error', () => {
+            img.remove()
+            button.classList.add('noimg')
+            frame.insertAdjacentHTML('beforeend', MOUNTAIN_SVG)
+            markPhotoMissing()
+          })
+          frame.append(img)
+          // hover 时轮播簇内照片（Apple 相册手感）
+          if (allPhotos.length > 1) {
+            let carousel = 0
+            let carouselIndex = 0
+            button.addEventListener('mouseenter', () => {
+              if (carousel || photoFilesMissing) return
+              carousel = setInterval(() => {
+                if (!img.isConnected) { clearInterval(carousel); carousel = 0; return }
+                carouselIndex = (carouselIndex + 1) % allPhotos.length
+                img.classList.add('swapping')
+                setTimeout(() => {
+                  img.src = '/wenshan/photos/' + encodeURIComponent(allPhotos[carouselIndex].id) + '.jpg'
+                  img.classList.remove('swapping')
+                }, 160)
+              }, 1000)
+            })
+            button.addEventListener('mouseleave', () => {
+              if (carousel) { clearInterval(carousel); carousel = 0 }
+              carouselIndex = 0
+              img.src = '/wenshan/photos/' + encodeURIComponent(allPhotos[0].id) + '.jpg'
+              img.classList.remove('swapping')
+            })
+          }
+        } else {
+          button.classList.add('noimg')
+          frame.insertAdjacentHTML('beforeend', MOUNTAIN_SVG)
+        }
+        const tail = document.createElement('span')
+        tail.className = 'tail'
+        const count = document.createElement('span')
+        count.className = 'count'
+        count.textContent = cluster.photoCount
+        const label = document.createElement('span')
+        label.className = 'label'
+        label.textContent = cluster.spots.length === 1
+          ? cluster.spots[0].title
+          : cluster.spots.map(spot => spot.title).slice(0, 2).join('、') + (cluster.spots.length > 2 ? ' 等' : '')
+        body.append(tail, frame, count, label)
+        button.append(body)
+        button.addEventListener('click', () => onClusterClick(cluster))
+        return button
+      }
+      function renderMarkers() {
+        const wanted = new Set(clusters.map(cluster => cluster.key))
+        for (const [key, element] of markerPool) {
+          if (!wanted.has(key)) {
+            element.remove()
+            markerPool.delete(key)
+          }
+        }
+        let created = 0
+        for (const cluster of clusters) {
+          if (!markerPool.has(cluster.key)) {
+            const element = markerElement(cluster)
+            element.querySelector('.body').style.animationDelay = (created++ % 9) * 36 + 'ms'
+            markerPool.set(cluster.key, element)
+            markerHost.append(element)
+          }
+          markerPool.get(cluster.key).__cluster = cluster
+        }
+        positionMarkers()
+      }
+      function positionMarkers() {
+        for (const element of markerPool.values()) {
+          const cluster = element.__cluster
+          const p = toScreen([cluster.wx, cluster.wy])
+          const visible = p[0] > -90 && p[1] > -30 && p[0] < W() + 90 && p[1] < H() + 120
+          element.style.display = visible ? '' : 'none'
+          if (visible) element.style.transform = 'translate(' + p[0].toFixed(1) + 'px,' + p[1].toFixed(1) + 'px) translate(-50%,-100%)'
+        }
+      }
+      function onClusterClick(cluster) {
+        stopPlay()
+        if (cluster.spots.length > 1 && view.scale < view.max * .92) {
+          // 苹果相册手感：先放大拆簇，拆不开（同点重合）再展开照片
+          const xs = cluster.spots.map(spot => spot.w[0])
+          const ys = cluster.spots.map(spot => spot.w[1])
+          const spanX = Math.max(...xs) - Math.min(...xs)
+          const spanY = Math.max(...ys) - Math.min(...ys)
+          const span = Math.max(spanX, spanY)
+          if (span > 1e-7) {
+            const target = Math.min(view.max, Math.max(view.scale * 2.1, Math.min((W() * .5) / (spanX || 1e-9), (H() * .5) / (spanY || 1e-9))))
+            if (target > view.scale * 1.12) {
+              flyTo(target, cluster.wx, cluster.wy)
+              return
+            }
+          }
+        }
+        openSheet(cluster.spots)
+        flyTo(view.scale, cluster.wx, cluster.wy + 60 / view.scale)
+      }
+
+      // ———— 底部照片条 ————
+      function photoCard(photo, spotTitle) {
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'shot'
+        const holder = document.createElement('span')
+        holder.className = 'ph'
+        const img = document.createElement('img')
+        img.alt = photo.c || spotTitle
+        img.loading = 'lazy'
+        img.decoding = 'async'
+        img.src = '/wenshan/photos/' + encodeURIComponent(photo.id) + '.jpg'
+        img.addEventListener('error', () => {
+          img.remove()
+          holder.classList.add('noimg')
+          holder.insertAdjacentHTML('beforeend', MOUNTAIN_SVG)
+          markPhotoMissing()
+        })
+        holder.append(img)
+        if (photo.t) {
+          const time = document.createElement('span')
+          time.className = 't'
+          time.textContent = photo.t
+          holder.append(time)
+        }
+        const caption = document.createElement('span')
+        caption.className = 'cap'
+        caption.textContent = photo.c || '未命名照片'
+        button.append(holder, caption)
+        button.addEventListener('click', () => openLightbox(photo))
+        return button
+      }
+      function spotGroup(title, metaText, dayIndex, photos, knowledgeId) {
+        const group = document.createElement('div')
+        group.className = 'spot-group'
+        group.style.setProperty('--day', DAY_COLORS[dayIndex % DAY_COLORS.length])
+        const head = document.createElement('div')
+        head.className = 'spot-title'
+        const dot = document.createElement('i')
+        const name = document.createElement('b')
+        name.textContent = title
+        head.append(dot, name)
+        if (metaText) {
+          const meta = document.createElement('span')
+          meta.textContent = metaText
+          head.append(meta)
+        }
+        if (knowledgeId) {
+          const link = document.createElement('a')
+          link.className = 'spot-link'
+          link.href = '/wenshan/knowledge-graph?focus=' + encodeURIComponent(knowledgeId)
+          link.textContent = '查看知识 ↗'
+          link.title = '在知识图谱中打开这个讲解点'
+          head.append(link)
+        }
+        const strip = document.createElement('div')
+        strip.className = 'strip'
+        for (const photo of photos) strip.append(photoCard(photo, title))
+        group.append(head, strip)
+        return group
+      }
+      function openSheet(groupSpots) {
+        sheetBody.replaceChildren()
+        const totalPhotos = groupSpots.reduce((sum, spot) => sum + spot.photos.length, 0)
+        if (groupSpots.length === 1) {
+          const spot = groupSpots[0]
+          sheetTitle.textContent = spot.title
+          sheetMeta.textContent = spot.short + ' 第' + spot.n + '点'
+            + (spot.time ? ' · ' + spot.time : '') + (spot.alt ? ' · 海拔 ' + spot.alt + ' m' : '')
+            + (spot.venue ? ' · ' + spot.venue : '') + ' · ' + totalPhotos + ' 张'
+            + (spot.approx ? ' · 位置为近似标注' : '')
+        } else {
+          sheetTitle.textContent = groupSpots.length + ' 个讲解点'
+          sheetMeta.textContent = totalPhotos + ' 张照片'
+        }
+        gallery = []
+        for (const spot of groupSpots) {
+          for (const photo of spot.photos) gallery.push({ ...photo, spotTitle: spot.title, day: spot.short })
+          sheetBody.append(spotGroup(
+            spot.title,
+            spot.short + ' 第' + spot.n + '点' + (spot.time ? ' · ' + spot.time : '') + (spot.photos.length ? '' : ' · 本点无照片'),
+            spot.dayIndex,
+            spot.photos,
+            spot.id,
+          ))
+        }
+        sheet.classList.add('show')
+      }
+      function openRoadSheet() {
+        sheetBody.replaceChildren()
+        const daysToShow = data.days.filter(day => (dayFilter === 'all' || day.short === dayFilter) && day.roadPhotos.length)
+        const totalPhotos = daysToShow.reduce((sum, day) => sum + day.roadPhotos.length, 0)
+        sheetTitle.textContent = '沿途相册'
+        sheetMeta.textContent = (dayFilter === 'all' ? '全部实习日' : dayFilter) + ' · ' + totalPhotos + ' 张（未标注坐标，不上地图）'
+        gallery = []
+        for (const day of daysToShow) {
+          for (const photo of day.roadPhotos) gallery.push({ ...photo, spotTitle: day.short + ' 沿途', day: day.short })
+          sheetBody.append(spotGroup(day.short + ' 沿途', day.route, day.dayIndex, day.roadPhotos))
+        }
+        sheet.classList.add('show')
+      }
+      const closeSheet = () => sheet.classList.remove('show')
+
+      // ———— 灯箱 ————
+      function renderLightbox() {
+        const photo = gallery[galleryIndex]
+        lbStage.replaceChildren()
+        const img = document.createElement('img')
+        img.alt = photo.c || photo.spotTitle
+        img.src = '/wenshan/photos/' + encodeURIComponent(photo.id) + '.jpg'
+        img.addEventListener('error', () => {
+          img.remove()
+          const holder = document.createElement('div')
+          holder.className = 'lb-noimg'
+          holder.innerHTML = MOUNTAIN_SVG
+          lbStage.prepend(holder)
+        })
+        const caption = document.createElement('figcaption')
+        caption.className = 'lb-cap'
+        caption.textContent = photo.c || '未命名照片'
+        const small = document.createElement('small')
+        small.textContent = photo.spotTitle + (photo.t ? ' · ' + photo.t : '') + ' · ' + (galleryIndex + 1) + ' / ' + gallery.length
+        caption.append(small)
+        lbStage.append(img, caption)
+      }
+      function openLightbox(photo) {
+        const index = gallery.findIndex(item => item.id === photo.id)
+        galleryIndex = index >= 0 ? index : 0
+        renderLightbox()
+        lightbox.classList.add('show')
+      }
+      const stepLightbox = delta => {
+        if (!gallery.length) return
+        galleryIndex = (galleryIndex + delta + gallery.length) % gallery.length
+        renderLightbox()
+      }
+      const closeLightbox = () => lightbox.classList.remove('show')
+
+      // ———— 照片文件缺失提示 ————
+      let missingCount = 0
+      function markPhotoMissing() {
+        missingCount++
+        if (missingCount >= 3 && !photoFilesMissing) {
+          photoFilesMissing = true
+          banner.classList.remove('hidden')
+        }
+      }
+
+      // ———— 日期筛选 ————
+      function renderDaybar() {
+        daybar.replaceChildren()
+        const totalPhotos = spots.reduce((sum, spot) => sum + spot.photos.length, 0)
+        const entries = [{ id: 'all', label: '全部', count: totalPhotos, dot: '#8fb79b' }]
+        data.days.forEach(day => {
+          const count = day.points.reduce((sum, point) => sum + point.photos.length, 0)
+          if (count || day.roadPhotos.length) {
+            entries.push({ id: day.short, label: day.short, count, dot: DAY_COLORS[day.dayIndex % DAY_COLORS.length] })
+          }
+        })
+        for (const entry of entries) {
+          const chip = document.createElement('button')
+          chip.type = 'button'
+          chip.className = 'chip' + (dayFilter === entry.id ? ' on' : '')
+          chip.style.setProperty('--dot', entry.dot)
+          const dot = document.createElement('i')
+          const label = document.createElement('span')
+          label.textContent = entry.label
+          const count = document.createElement('small')
+          count.textContent = entry.count + ' 张'
+          chip.append(dot, label, count)
+          chip.addEventListener('click', () => {
+            stopPlay()
+            dayFilter = entry.id
+            closeSheet()
+            renderDaybar()
+            recluster()
+            const pool = spots.filter(spot => dayFilter === 'all' || spot.short === dayFilter)
+            if (pool.length) {
+              const xs = pool.map(spot => spot.w[0]), ys = pool.map(spot => spot.w[1])
+              const cx = (Math.min(...xs) + Math.max(...xs)) / 2
+              const cy = (Math.min(...ys) + Math.max(...ys)) / 2
+              const spanX = Math.max(1e-6, Math.max(...xs) - Math.min(...xs))
+              const spanY = Math.max(1e-6, Math.max(...ys) - Math.min(...ys))
+              const target = Math.min(view.max * .8, Math.min((W() * .62) / spanX, (H() * .5) / spanY))
+              flyTo(Math.max(view.fitScale, target), cx, cy)
+            }
+          })
+          daybar.append(chip)
+        }
+        const currentDay = dayFilter === 'all' ? null : data.days.find(day => day.short === dayFilter)
+        if (currentDay && currentDay.points.length >= 2) {
+          const chip = document.createElement('button')
+          chip.type = 'button'
+          chip.className = 'chip play'
+          chip.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 5.5v13l10-6.5Z" fill="currentColor"/></svg><span>播放路线</span>'
+          chip.title = '沿当日讲解点顺序飞行浏览'
+          chip.addEventListener('click', () => playRoute())
+          daybar.append(chip)
+        }
+        if (dayFilter === 'all' && data.days.some(day => day.points.length >= 2)) {
+          const chip = document.createElement('button')
+          chip.type = 'button'
+          chip.className = 'chip play'
+          chip.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 5.5v13l7.5-6.5Z" fill="currentColor"/><path d="M14.5 6.5v11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 8v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".65"/></svg><span>回放全程</span>'
+          chip.title = '按时间顺序回放五天实习行程'
+          chip.addEventListener('click', () => playAll())
+          daybar.append(chip)
+        }
+        const hasRoad = data.days.some(day => (dayFilter === 'all' || day.short === dayFilter) && day.roadPhotos.length)
+        if (hasRoad) {
+          const chip = document.createElement('button')
+          chip.type = 'button'
+          chip.className = 'chip road'
+          chip.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19c4-7 6-9 8-9s4 2 8 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="6.4" r="1.7" fill="currentColor"/></svg><span>沿途相册</span>'
+          chip.title = '没有坐标的沿途照片'
+          chip.addEventListener('click', openRoadSheet)
+          daybar.append(chip)
+        }
+      }
+
+      // ———— 手势 ————
+      const pointers = new Map()
+      let pinchStart = null
+      let dragStart = null
+      canvas.addEventListener('pointerdown', event => {
+        stopPlay()
+        canvas.setPointerCapture(event.pointerId)
+        pointers.set(event.pointerId, [event.clientX, event.clientY])
+        if (pointers.size === 1) {
+          dragStart = { x: event.clientX, y: event.clientY, tx: view.tx, ty: view.ty }
+          canvas.classList.add('dragging')
+        } else if (pointers.size === 2) {
+          const pts = [...pointers.values()]
+          pinchStart = {
+            dist: Math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1]),
+            scale: view.scale,
+            mid: [(pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2],
+          }
+          dragStart = null
+        }
+      })
+      canvas.addEventListener('pointermove', event => {
+        if (!pointers.has(event.pointerId)) return
+        pointers.set(event.pointerId, [event.clientX, event.clientY])
+        if (pointers.size === 2 && pinchStart) {
+          const pts = [...pointers.values()]
+          const dist = Math.hypot(pts[0][0] - pts[1][0], pts[0][1] - pts[1][1])
+          const mid = [(pts[0][0] + pts[1][0]) / 2, (pts[0][1] + pts[1][1]) / 2]
+          const w = fromScreen(pinchStart.mid)
+          const scale = Math.max(view.min, Math.min(view.max, pinchStart.scale * dist / Math.max(1, pinchStart.dist)))
+          view.scale = scale
+          view.tx = mid[0] - w[0] * scale
+          view.ty = mid[1] - w[1] * scale
+          requestDraw()
+          positionMarkers()
+          scheduleRecluster()
+        } else if (dragStart) {
+          view.tx = dragStart.tx + event.clientX - dragStart.x
+          view.ty = dragStart.ty + event.clientY - dragStart.y
+          requestDraw()
+          positionMarkers()
+        }
+      })
+      const endPointer = event => {
+        pointers.delete(event.pointerId)
+        if (pointers.size < 2) pinchStart = null
+        if (pointers.size === 0) {
+          dragStart = null
+          canvas.classList.remove('dragging')
+        }
+      }
+      canvas.addEventListener('pointerup', endPointer)
+      canvas.addEventListener('pointercancel', endPointer)
+      canvas.addEventListener('wheel', event => {
+        event.preventDefault()
+        stopPlay()
+        zoomAt(event.clientX, event.clientY, Math.exp(-event.deltaY * .0016))
+      }, { passive: false })
+      canvas.addEventListener('dblclick', event => zoomAt(event.clientX, event.clientY, 1.9))
+
+      document.querySelector('#zoom-in').addEventListener('click', () => zoomAt(W() / 2, H() / 2, 1.35))
+      document.querySelector('#zoom-out').addEventListener('click', () => zoomAt(W() / 2, H() / 2, 1 / 1.35))
+      document.querySelector('#fit').addEventListener('click', () => fitView())
+      document.querySelector('#sheet-close').addEventListener('click', closeSheet)
+      document.querySelector('#lb-close').addEventListener('click', closeLightbox)
+      document.querySelector('#lb-prev').addEventListener('click', () => stepLightbox(-1))
+      document.querySelector('#lb-next').addEventListener('click', () => stepLightbox(1))
+      lightbox.addEventListener('click', event => { if (event.target === lightbox) closeLightbox() })
+      document.addEventListener('keydown', event => {
+        if (lightbox.classList.contains('show')) {
+          if (event.key === 'Escape') closeLightbox()
+          if (event.key === 'ArrowLeft') stepLightbox(-1)
+          if (event.key === 'ArrowRight') stepLightbox(1)
+          return
+        }
+        if (event.key === 'Escape') closeSheet()
+      })
+      window.addEventListener('resize', () => {
+        requestDraw()
+        positionMarkers()
+      })
+
+      // ———— 启动 ————
+      async function load() {
+        try {
+          const response = await fetch('/wenshan/api/photo-map', { cache: 'no-store' })
+          if (!response.ok) throw new Error('接口返回 ' + response.status)
+          data = await response.json()
+          if (!data.bounds) throw new Error('缺少地图范围数据')
+          lon0 = (data.bounds[0] + data.bounds[2]) / 2
+          lat0 = (data.bounds[1] + data.bounds[3]) / 2
+          kx = Math.cos(lat0 * Math.PI / 180)
+          spots = data.days.flatMap(day => day.points.map(point => ({
+            ...point,
+            short: day.short,
+            date: day.date,
+            dayIndex: day.dayIndex,
+            w: project(point.coord),
+          })))
+          stat.textContent = data.stats.photos + ' 张照片 · ' + data.stats.points + ' 个讲解点'
+          buildPaths()
+          fitView()
+          renderDaybar()
+          recluster()
+          loadTerrain()
+          // 探测照片文件是否已生成（HEAD 第一张）
+          const first = spots.find(spot => spot.photos.length)
+          if (first) {
+            fetch('/wenshan/photos/' + encodeURIComponent(first.photos[0].id) + '.jpg', { method: 'HEAD' })
+              .then(res => { if (!res.ok) { missingCount = 3; markPhotoMissing() } })
+              .catch(() => {})
+          }
+          window.__wenshanPhotoMap = { view, get clusters() { return clusters }, spots }
+        } catch (error) {
+          loading.innerHTML = '<span class="error">照片地图加载失败：' + String(error.message || error) + '</span>'
+          return
+        }
+        loading.classList.add('hidden')
+      }
+      load()
+    })()
+  </script>
+</body>
+</html>

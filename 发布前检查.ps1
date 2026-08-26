@@ -7,6 +7,10 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSCommandPath
 $ProductName = '问山：地理野外实习自成长智能助手'
 
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+  throw 'Windows PowerShell 5.1 会剥离内嵌脚本的引号导致校验误报，请改用 PowerShell 7 运行：pwsh -File .\发布前检查.ps1'
+}
+
 function Invoke-CheckedCommand {
   param(
     [string]$Label,

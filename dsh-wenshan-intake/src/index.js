@@ -8,8 +8,11 @@ import { fileURLToPath } from 'node:url'
 const runFile = promisify(execFile)
 const moduleDir = path.dirname(fileURLToPath(import.meta.url))
 const defaultGraphPage = path.resolve(moduleDir, '../public/knowledge-graph.html')
+const defaultPhotoMapPage = path.resolve(moduleDir, '../public/photo-map.html')
+const defaultGalaxyPage = path.resolve(moduleDir, '../public/knowledge-galaxy.html')
 const defaultEvolutionScript = path.resolve(moduleDir, '../public/evolution.js')
 const defaultForceGraphScript = path.resolve(moduleDir, '../node_modules/force-graph/dist/force-graph.min.js')
+const defaultForceGraph3dScript = path.resolve(moduleDir, '../node_modules/3d-force-graph/dist/3d-force-graph.min.js')
 const defaultWallpaper = path.resolve(moduleDir, '../public/wenshan-valley.webp')
 const MAX_EXTRACTED_TEXT = 2_000_000
 const PRODUCT_NAME = '问山：地理野外实习自成长智能助手'
@@ -236,15 +239,63 @@ export function buildKnowledgeGraph(lushan) {
     }
   }
   const visibleLinks = [...links.values()].filter(link => nodes.has(link.source) && nodes.has(link.target))
+  const storeStats = lushan.knowledge.stats()
   return {
     nodes: [...nodes.values()],
     links: visibleLinks,
     stats: {
       sources: sources.length,
       pendingDrafts: drafts.length,
-      publishedNodes: lushan.knowledge.stats().publishedNodes,
+      publishedNodes: storeStats.publishedNodes,
+      openGaps: storeStats.openGaps,
       graphNodes: nodes.size,
       graphLinks: visibleLinks.length,
+    },
+  }
+}
+
+/** 照片地图页数据：有坐标的讲解点照片组 + 沿途相册 + 底图矢量图层。 */
+export function buildPhotoMapData(lushan) {
+  const photoMeta = lushan.photos || {}
+  const photoView = id => ({ id, c: photoMeta[id]?.c || '', t: photoMeta[id]?.t || '' })
+  let photoCount = 0
+  const days = lushan.days.map((day, dayIndex) => {
+    const points = day.points.filter(point => Array.isArray(point.coord)).map(point => {
+      const photos = (point.photos || []).map(photoView)
+      photoCount += photos.length
+      return {
+        id: point.id,
+        n: point.n,
+        title: point.title,
+        time: point.time || '',
+        alt: point.alt || '',
+        venue: point.venue || '',
+        approx: Boolean(point.approx),
+        coord: point.coord,
+        photos,
+      }
+    })
+    const roadPhotos = (day.roadPhotos || []).map(photoView)
+    photoCount += roadPhotos.length
+    return { date: day.date, short: day.short, route: day.route || '', dayIndex, points, roadPhotos }
+  })
+  const layers = lushan.map?.layers || {}
+  return {
+    site: { name: lushan.site?.name || '', brand: lushan.site?.brand || '' },
+    bounds: lushan.map?.bounds || null,
+    days,
+    layers: {
+      boundary: layers.boundary || [],
+      water: layers.water || [],
+      rivers: layers.rivers || [],
+      roads: layers.roads || [],
+      peaks: layers.peaks || [],
+      places: layers.places || [],
+    },
+    stats: {
+      photos: photoCount,
+      points: days.reduce((sum, day) => sum + day.points.length, 0),
+      days: days.length,
     },
   }
 }
@@ -334,8 +385,11 @@ function injectProductSurface(html) {
 export function apply(ctx, config = {}) {
   const options = {
     graphPage: config.graphPage || defaultGraphPage,
+    photoMapPage: config.photoMapPage || defaultPhotoMapPage,
+    galaxyPage: config.galaxyPage || defaultGalaxyPage,
     evolutionScript: config.evolutionScript || defaultEvolutionScript,
     forceGraphScript: config.forceGraphScript || defaultForceGraphScript,
+    forceGraph3dScript: config.forceGraph3dScript || defaultForceGraph3dScript,
     wallpaperPath: config.wallpaperPath || defaultWallpaper,
     maxUploadBytes: Number(config.maxUploadBytes) || 200 * 1024 * 1024,
     python: config.python || 'python',
@@ -378,6 +432,94 @@ export function apply(ctx, config = {}) {
     },
   }), 'wenshan-intake:graph-page')
   ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/wenshan/assets/3d-force-graph.min.js',
+    async handler(req, res) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: '仅支持 GET' })
+      return sendText(res, req, options.forceGraph3dScript, 'text/javascript; charset=utf-8')
+    },
+  }), 'wenshan-intake:force-graph-3d-script')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/wenshan/knowledge-galaxy',
+    async handler(req, res) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: '仅支持 GET' })
+      return sendText(res, req, options.galaxyPage, 'text/html; charset=utf-8')
+    },
+  }), 'wenshan-intake:galaxy-page')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/wenshan/photo-map',
+    async handler(req, res) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: '仅支持 GET' })
+      return sendText(res, req, options.photoMapPage, 'text/html; charset=utf-8')
+    },
+  }), 'wenshan-intake:photo-map-page')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/wenshan/api/photo-map',
+    async handler(req, res) {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: '仅支持 GET' })
+      return sendJson(res, 200, buildPhotoMapData(ctx.lushanData))
+    },
+  }), 'wenshan-intake:photo-map-api')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/wenshan/assets/terrain.png',
+    async handler(req, res) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: '仅支持 GET' })
+      try {
+        const body = await fs.promises.readFile(path.join(ctx.lushanData.dataDir, 'terrain.png'))
+        res.writeHead(200, {
+          'content-type': 'image/png',
+          'content-length': body.length,
+          'cache-control': 'public, max-age=3600',
+          'x-content-type-options': 'nosniff',
+        })
+        res.end(req.method === 'HEAD' ? undefined : body)
+      } catch {
+        return sendJson(res, 404, { error: '地形底图尚未生成，请运行 tools/build_terrain.py' })
+      }
+    },
+  }), 'wenshan-intake:terrain-image')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/wenshan/assets/terrain.json',
+    async handler(req, res) {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: '仅支持 GET' })
+      try {
+        const body = JSON.parse(await fs.promises.readFile(path.join(ctx.lushanData.dataDir, 'terrain.json'), 'utf8'))
+        return sendJson(res, 200, body)
+      } catch {
+        return sendJson(res, 404, { error: '地形底图尚未生成' })
+      }
+    },
+  }), 'wenshan-intake:terrain-meta')
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'prefix',
+    path: '/wenshan/photos',
+    async handler(req, res) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: '仅支持 GET' })
+      const url = new URL(req.url || '/', 'http://localhost')
+      let raw = ''
+      try { raw = decodeURIComponent(url.pathname.slice('/wenshan/photos/'.length)) } catch { raw = '' }
+      const name = path.basename(raw)
+      if (!name || name !== raw || !/^[^\\/]+\.jpe?g$/i.test(name)) return sendJson(res, 404, { error: '没有这张照片' })
+      try {
+        const body = await fs.promises.readFile(path.join(ctx.lushanData.dataDir, 'photos', name))
+        res.writeHead(200, {
+          'content-type': 'image/jpeg',
+          'content-length': body.length,
+          'cache-control': 'public, max-age=3600',
+          'x-content-type-options': 'nosniff',
+        })
+        res.end(req.method === 'HEAD' ? undefined : body)
+      } catch {
+        return sendJson(res, 404, { error: '照片文件尚未生成，请先运行 更新数据.bat' })
+      }
+    },
+  }), 'wenshan-intake:photo-files')
+  ctx.effect(() => ctx.webServer.register({
     kind: 'prefix',
     path: '/wenshan/api/evolution',
     async handler(req, res) {
@@ -399,6 +541,12 @@ export function apply(ctx, config = {}) {
       }
       if (req.method === 'GET' && url.pathname === '/wenshan/api/evolution/sources') {
         return sendJson(res, 200, { sources: ctx.lushanData.knowledge.listSources() })
+      }
+      if (req.method === 'GET' && url.pathname === '/wenshan/api/evolution/gaps') {
+        const status = url.searchParams.get('status') || 'open'
+        if (!['open', 'resolved', 'all'].includes(status)) return sendJson(res, 400, { error: 'status 只能是 open、resolved 或 all' })
+        const gaps = ctx.lushanData.knowledge.listGaps(status === 'all' ? undefined : status)
+        return sendJson(res, 200, { gaps, count: gaps.length })
       }
       if (req.method === 'POST' && url.pathname === '/wenshan/api/evolution/sources') {
         try {
@@ -434,5 +582,5 @@ export function apply(ctx, config = {}) {
       return sendJson(res, 404, { error: '接口不存在' })
     },
   }), 'wenshan-intake:evolution-api')
-  ctx.logger('wenshan-intake').info('知识演化资料夹与图谱：/wenshan/knowledge-graph')
+  ctx.logger('wenshan-intake').info('知识演化资料夹与图谱：/wenshan/knowledge-graph · 照片地图：/wenshan/photo-map')
 }

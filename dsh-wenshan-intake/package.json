@@ -16,6 +16,7 @@
     "dsh-georag": ">=0.1.0"
   },
   "dependencies": {
+    "3d-force-graph": "^1.80.0",
     "force-graph": "1.51.4"
   }
 }
