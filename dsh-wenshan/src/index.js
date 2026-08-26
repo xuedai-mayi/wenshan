@@ -2,6 +2,7 @@
 // mode=qa 只提供已发布知识图谱的只读问答工具。
 import { defineTool } from '../../deepseek-harness-master/deepseek-harness-master/packages/core/tools/lib/index.js'
 import { buildKnowledgeToolDefs } from './build-tools.js'
+import { buildGapManageToolDefs, buildGapReportToolDefs } from './gap-tools.js'
 import { buildToolDefs } from './tools.js'
 
 export const name = 'wenshan'
@@ -17,6 +18,11 @@ const BUILD_PROMPT = `你是「问山」的知识演化引擎，负责吸收陌�
 5. 草稿默认不进入正式图谱。只有用户在审核后原样发送“确认发布 draft-xxxxxxxx”，才调用 publish_knowledge_draft。一般性的“可以”“继续”“没问题”都不算发布确认。
 6. 用户要求修改时，不发布旧草稿；按意见重新创建一份草稿。用户明确放弃时才调用 reject_knowledge_draft。
 
+野外助教答不上来的问题会登记成知识缺口，这是最重要的补充线索：
+- 会话开始或用户问“有什么要补的”时，用 list_knowledge_gaps 查看待补清单，按被问次数从高到低建议优先级。
+- 新资料整理完发布后，对照清单检查哪些缺口已被覆盖，用 resolve_knowledge_gap 逐条销掉并注明对应草稿。
+- 缺口只在确有已发布知识覆盖（或用户明确说不补）时才能销掉，不能为了清空清单而虚报。
+
 文件资料由“知识演化”模式中的资料夹选择器收录。资料夹收录后，系统会立即生成可查看的知识图谱。照片也可以直接附在对话中，你看清图片后把可辨认内容作为来源保存；看不清的字必须标注“无法辨认”，不能猜。
 
 回复使用简洁中文。每次说明当前处于“来源已保存、草稿待审核、已发布”中的哪一步。`
@@ -29,8 +35,8 @@ function qaPrompt(site, agentName) {
 工作方法：
 - 先用 retrieve 找线索，需要全文时用 read_note，关系问题用 neighbors，位置问题用 locate，实测气象与行程分别用 weather、itinerary。
 - 一次检索不足时更换关键词继续查。涉及数字、坐标、海拔、产状和距离时，必须读取工具返回的原始数据，不能估算。
-- 没有可靠依据时，明确说“已发布实习资料中未覆盖此问题”，并指出最接近的已知内容。
-- 本模式是只读模式。你没有创建、修改或发布知识图谱的权限；需要补充资料时，请用户新建空白会话并切换到“知识演化”。
+- 没有可靠依据时，明确说“已发布实习资料中未覆盖此问题”，并指出最接近的已知内容；随后调用 report_knowledge_gap 用用户原话把问题登记为知识缺口，并告诉用户已记录、整理者会看到。不要为资料里已有答案的问题登记缺口。
+- 本模式对知识图谱是只读的。你没有创建、修改或发布知识的权限；需要补充资料时，请用户新建空白会话并切换到“知识演化”。
 
 回答要求：
 - 中文，先给结论，再解释依据和地理机制，总长通常不超过 500 字。
@@ -42,8 +48,8 @@ export function apply(ctx, config = {}) {
   const mode = config.mode === 'build' ? 'build' : 'qa'
   const readOnly = buildToolDefs(ctx.lushanData)
   const tools = mode === 'build'
-    ? [...readOnly, ...buildKnowledgeToolDefs(ctx.lushanData)]
-    : readOnly
+    ? [...readOnly, ...buildKnowledgeToolDefs(ctx.lushanData), ...buildGapManageToolDefs(ctx.lushanData)]
+    : [...readOnly, ...buildGapReportToolDefs(ctx.lushanData)]
   for (const def of tools) ctx.tools.register(defineTool(def))
 
   const siteName = ctx.lushanData.site?.name || '本区'

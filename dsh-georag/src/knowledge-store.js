@@ -11,6 +11,15 @@ const now = () => new Date().toISOString()
 const sha256 = value => crypto.createHash('sha256').update(value).digest('hex')
 const normalizeText = value => String(value ?? '').replace(/\r\n?/g, '\n').trim()
 
+/** 缺口去重键：同一问题的不同标点/空白写法归并为一条缺口。 */
+function gapKey(question) {
+  return String(question ?? '')
+    .normalize('NFKC')
+    .replace(/\s+/g, '')
+    .replace(/[。．.？?！!，,、；;：:…~～]+$/g, '')
+    .toLowerCase()
+}
+
 function safeExtension(name) {
   const ext = path.extname(String(name || '')).toLowerCase().replace(/[^.a-z0-9]/g, '')
   return ext && ext.length <= 12 ? ext : '.bin'
@@ -89,6 +98,7 @@ export class KnowledgeStore {
     this.drafts = new Map()
     this.published = new Map()
     this.publishedTitle = new Map()
+    this.gaps = new Map()
     this.events = []
     const lines = fs.readFileSync(this.eventsFile, 'utf8').split('\n')
     for (let i = 0; i < lines.length; i++) {
@@ -148,6 +158,36 @@ export class KnowledgeStore {
         this.published.set(node.id, node)
         this.publishedTitle.set(node.t, node.id)
       }
+      return
+    }
+    if (event.type === 'gap.reported') {
+      const existing = this.gaps.get(event.gapId)
+      if (existing) {
+        existing.count += 1
+        existing.lastReportedAt = event.at
+        if (event.note && !existing.notes.includes(event.note)) existing.notes.push(event.note)
+        if (existing.status === 'resolved') {
+          // 已解决后又被问到：重新打开，说明发布的知识仍没接住这个问题。
+          existing.status = 'open'
+          existing.resolution = undefined
+          existing.resolvedAt = undefined
+        }
+      } else {
+        this.gaps.set(event.gapId, {
+          id: event.gapId,
+          question: event.question,
+          notes: event.note ? [event.note] : [],
+          count: 1,
+          status: 'open',
+          firstReportedAt: event.at,
+          lastReportedAt: event.at,
+        })
+      }
+      return
+    }
+    if (event.type === 'gap.resolved') {
+      const gap = this.gaps.get(event.gapId)
+      if (gap) Object.assign(gap, { status: 'resolved', resolution: event.resolution, draftId: event.draftId, resolvedAt: event.at })
     }
   }
 
@@ -330,14 +370,50 @@ export class KnowledgeStore {
     return [...this.published.values()]
   }
 
+  /** 野外助教确认"已发布资料未覆盖"后登记知识缺口；同一问题重复上报只累计次数。 */
+  reportGap({ question, note = '' }) {
+    const q = normalizeText(question)
+    if (q.length < 4 || q.length > 500) throw new Error('question 长度应为 4—500 字')
+    const key = gapKey(q)
+    if (!key) throw new Error('question 不能为空')
+    if (this.gaps.size >= 2000 && !this.gaps.has(`gap-${sha256(key).slice(0, 16)}`)) {
+      throw new Error('知识缺口数量已达上限，请先在知识演化模式清理')
+    }
+    const gapId = `gap-${sha256(key).slice(0, 16)}`
+    this.append('gap.reported', { gapId, question: q, note: normalizeText(note).slice(0, 300) || undefined })
+    return { ...this.gaps.get(gapId) }
+  }
+
+  listGaps(status) {
+    return [...this.gaps.values()]
+      .filter(gap => !status || gap.status === status)
+      .sort((a, b) => (b.status === 'open') - (a.status === 'open')
+        || b.count - a.count
+        || String(b.lastReportedAt).localeCompare(String(a.lastReportedAt)))
+      .map(gap => ({ ...gap }))
+  }
+
+  resolveGap(id, resolution, draftId) {
+    const gap = this.gaps.get(id)
+    if (!gap) throw new Error(`没有编号为「${id}」的知识缺口`)
+    if (gap.status === 'resolved') throw new Error('这条缺口已经处理过了')
+    const reason = normalizeText(resolution)
+    if (!reason) throw new Error('必须说明如何解决了这条缺口（发布了哪份草稿，或为何不补）')
+    this.append('gap.resolved', { gapId: id, resolution: reason.slice(0, 300), draftId: draftId ? normalizeText(draftId) : undefined })
+    return { ...this.gaps.get(id) }
+  }
+
   stats() {
     const drafts = [...this.drafts.values()]
+    const gaps = [...this.gaps.values()]
     return {
       sources: this.sources.size,
       pendingDrafts: drafts.filter(x => x.status === 'pending').length,
       publishedDrafts: drafts.filter(x => x.status === 'published').length,
       rejectedDrafts: drafts.filter(x => x.status === 'rejected').length,
       publishedNodes: this.published.size,
+      openGaps: gaps.filter(x => x.status === 'open').length,
+      resolvedGaps: gaps.filter(x => x.status === 'resolved').length,
       events: this.events.length,
     }
   }
