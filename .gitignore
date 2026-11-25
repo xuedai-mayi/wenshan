@@ -10,7 +10,7 @@
 # Dependencies and generated builds
 **/node_modules/
 **/dist/
-deepseek-harness-master/deepseek-harness-master/**/lib/
+vendor/runtime/**/lib/
 **/*.tsbuildinfo
 **/__pycache__/
 **/*.py[cod]
@@ -19,7 +19,6 @@ deepseek-harness-master/deepseek-harness-master/**/lib/
 # Runtime state and test artifacts
 output/
 .playwright-cli/
-web/qa-shots/
 *.log
 coverage/
 tmp/

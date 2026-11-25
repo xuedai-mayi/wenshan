@@ -1,24 +1,25 @@
-# dsh-wenshan
+# 问山（Wenshan）
 
-[![DeepSeek Harness](https://img.shields.io/badge/DeepSeek_Harness-community_plugin-2d6a4f)](https://github.com/deepseek-ai/deepseek-harness)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-问山是面向地理野外实习的 DeepSeek Harness 社区插件与二次开发项目。它把实习资料整理成可审核、可追溯的知识图谱，再用已发布的知识完成现场导览、教学讲解和问答。
+问山是一个面向地理野外实习的自成长知识图谱智能体。它把实习资料整理成可审核、可追溯的知识图谱，再用已发布的知识完成现场导览、教学讲解和问答；答不上来的问题会被登记为知识缺口，成为下一轮补资料的依据。
 
-> [!IMPORTANT]
-> 本项目不是 DeepSeek 或 DeepSeek Harness 的官方发行版，也不代表上游项目。仓库内保留了一份经过定制的 DeepSeek Harness 源码，用于提供可复现的安装和运行环境。
-
-## 与 DeepSeek Harness 的关系
-
-本项目基于 [deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 开发，沿用其 Cordis 插件体系。主要扩展包括：
-
-- `dsh-georag`：知识检索、关系扩展、空间查询和知识事件存储插件。
-- `dsh-wenshan`：知识演化与野外助教两种 agent 模式的工具和提示词。
-- `dsh-wenshan-intake`：资料收录、知识图谱接口和浏览器页面插件。
-- `presets` 与 `wenshan.cordis.yml`：问山的 DSH preset 和产品挂载配置。
-
+仓库自带完整运行时和全部业务组件：安装脚本会在本机构建运行时，克隆后即可启动一个可离线使用的独立智能体服务。
 
 ![问山主界面](docs/images/home.png)
+
+## 架构
+
+```text
+packages/intake     页面与 HTTP 接口：知识图谱 / 知识星系 / 照片地图、资料上传、图谱与缺口接口
+packages/agent      agent 业务层：野外助教（只读）与知识演化（写入审核）两种模式的工具与提示词
+packages/georag     知识层：GeoRAG 三路检索、空间查询、不可变知识事件日志
+vendor/runtime      内置运行时：会话、模型调用、工具执行、Web 宿主
+config/wenshan.yml  产品挂载层：把上述组件装配成一个产品
+agents/             两个 agent 模式的配置
+```
+
+两种模式共享同一份已发布知识，但工具权限严格隔离：知识演化模式可以收录资料、创建草稿、确认发布；野外助教模式只有只读检索工具和登记知识缺口的权限。细节见 [docs/architecture.md](docs/architecture.md)。
 
 ## 功能
 
@@ -52,20 +53,22 @@ npm install -g pnpm
 ```powershell
 git clone <你的仓库地址>
 cd <仓库目录>
-.\安装问山.bat
-.\启动.bat
+.\scripts\install.bat
+.\scripts\start.bat
 ```
 
-安装脚本会安装并构建项目内的 DeepSeek Harness，同时安装知识图谱、文档提取、音频转写和 GIS 处理依赖。完成后打开：
+安装脚本会构建仓库内置的运行时，同时安装知识图谱、文档提取、音频转写和 GIS 处理依赖。完成后打开：
 
 - 主界面：`http://127.0.0.1:3080/`
 - 知识图谱：`http://127.0.0.1:3080/wenshan/knowledge-graph`
-- 照片地图：`http://127.0.0.1:3080/wenshan/photo-map`（照片缩略图由 `更新数据.bat` 生成）
+- 照片地图：`http://127.0.0.1:3080/wenshan/photo-map`（照片缩略图由 `scripts/update-data.bat` 生成）
 - 知识星系：`http://127.0.0.1:3080/wenshan/knowledge-galaxy`
 
-照片地图的地形晕渲底图由 `py -3.11 tools/build_terrain.py` 生成（从 AWS 开放高程瓦片下载 DEM，一次生成后离线可用；缺失时页面自动退回纯矢量底图）。
+也可以直接用 npm 脚本：`npm start`、`npm run data`、`npm run terrain`、`npm run eval`、`npm test`、`npm run preflight`。
 
-首次进入主界面后，在 `设置 > 模型` 中配置模型和 API Key。凭据写入本机 DSH 配置，不进入本仓库。
+照片地图的地形晕渲底图由 `py -3.11 scripts/build_terrain.py` 生成（从 AWS 开放高程瓦片下载 DEM，一次生成后离线可用；缺失时页面自动退回纯矢量底图）。
+
+首次进入主界面后，在 `设置 > 模型` 中配置模型和 API Key。凭据写入本机配置，不进入本仓库。
 
 ## 使用流程
 
@@ -118,31 +121,48 @@ data/knowledge/
 如需从原始 GDB、Obsidian 知识库和每日整理目录重建基础数据，先修改 `config/lushan.json` 中的三个来源路径，再运行：
 
 ```powershell
-.\更新数据.bat
+.\scripts\update-data.bat
 ```
 
 ## 项目结构
 
 ```text
-presets/                    知识演化与野外助教两个 DSH preset
-dsh-georag/                 GeoRAG 检索、空间查询和知识事件存储插件
-dsh-wenshan/                DSH 工具注册与两种模式的系统提示词
-dsh-wenshan-intake/         资料收录、图谱接口和图谱页面插件
-deepseek-harness-master/    项目内定制的 DeepSeek Harness 源码
-tools/                      数据构建、资料提取和验收脚本
-web/                        独立界面源码及检索评测复用代码
-data/                       可公开的基础检索数据
+config/                  站点配置与产品挂载配置
+  lushan.json            庐山站点配置（数据源路径、图层映射、文案）
+  wenshan.yml            产品挂载层
+agents/                  两种 agent 模式
+  field-qa/              野外助教（只读问答）
+  knowledge-build/       知识演化（写入审核）
+packages/
+  georag/                GeoRAG 检索、空间查询、知识事件存储
+  agent/                 工具注册与两种模式的系统提示词
+  intake/                资料收录、HTTP 接口与图谱/地图/星系页面
+scripts/                 安装、启动、数据构建、评测与发布检查脚本
+tests/                   存储、冒烟、产品链路与浏览器验收测试
+docs/                    架构文档、评测报告与图表、界面截图
+data/                    可公开的基础检索数据
+vendor/runtime/          随仓库分发的 agent 运行时源码
 ```
 
+## 开发与测试
+
+```powershell
+npm test                  # 知识事件日志的写入与重放（零外部依赖）
+npm run test:integration  # 冒烟 + 产品链路（需要先构建运行时）
+npm run eval              # 152 题检索消融评测，写 docs/evaluation/
+npm run preflight         # 构建 + 配置校验 + 冒烟 + 产品链路
+```
+
+评测报告见 [docs/evaluation/eval_report.md](docs/evaluation/eval_report.md)。
 
 ## 技术说明
 
-问山基于项目内的 DeepSeek Harness 二次开发。图谱使用 `force-graph`，基础检索结合中文二元组 BM25、知识关系扩展和空间距离衰减。主服务只监听 `127.0.0.1`，适合本机演示和教学环境。
+问山自带运行时：会话、模型调用、工具执行、Web 界面与业务组件在安装后共同组成一个本机独立服务。图谱使用 `force-graph`，基础检索结合中文二元组 BM25、知识关系扩展和空间距离衰减。主服务只监听 `127.0.0.1`，适合本机演示和教学环境。
 
 如需部署到公网，应另外配置登录鉴权、HTTPS、限流、文件安全检查和数据备份，不能直接暴露本机服务端口。
 
 ## 许可与声明
 
-本项目使用 [MIT License](LICENSE)。DeepSeek Harness 的原始 MIT 许可证、版权声明和第三方依赖声明保留在 `deepseek-harness-master/deepseek-harness-master/` 中，汇总信息见 [NOTICE.md](NOTICE.md)。`force-graph` 使用 MIT 许可证。
+本项目使用 [MIT License](LICENSE)。随仓库分发的运行时源码及其第三方依赖同样以 MIT 许可分发，原始版权声明、许可文本和第三方依赖声明保留在随包源码目录内，汇总信息见 [NOTICE.md](NOTICE.md)。`force-graph` 使用 MIT 许可证。
 
-`DeepSeek` 和 `DeepSeek Harness` 仅用于说明兼容关系与代码来源。山谷背景由本项目生成，仓库不包含原 Wallpaper Engine 素材包。公开使用庐山示例数据前，请自行确认数据授权和隐私边界。
+山谷背景由本项目生成，仓库不包含原 Wallpaper Engine 素材包。公开使用庐山示例数据之前，请自行确认数据授权和隐私边界。

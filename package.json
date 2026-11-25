@@ -1,0 +1,20 @@
+{
+  "name": "wenshan",
+  "version": "0.2.0",
+  "private": true,
+  "description": "问山：面向地理野外实习的自成长知识图谱智能体",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "start": "node scripts/run.mjs web",
+    "data": "py -3.11 scripts/build_data.py config/lushan.json",
+    "terrain": "py -3.11 scripts/build_terrain.py",
+    "eval": "node scripts/eval_qa.mjs",
+    "test": "node tests/store.test.mjs",
+    "test:integration": "node tests/smoke.test.mjs && node tests/product.test.mjs",
+    "preflight": "pwsh -File scripts/preflight.ps1"
+  }
+}
