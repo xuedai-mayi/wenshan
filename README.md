@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="#快速开始">快速开始</a> ·
+  <a href="#界面截图">界面截图</a> ·
   <a href="docs/product/user-guide.md">用户手册</a> ·
   <a href="docs/deploy.md">部署指南</a> ·
   <a href="https://github.com/xuedai-mayi/wenshan/issues">问题反馈</a>
@@ -46,6 +47,16 @@ npm start
 服务默认运行在 `http://127.0.0.1:3080/`。如果端口已被占用，以终端打印的地址为准。进入 **设置 → 模型** 可配置模型与 API Key。
 
 容器或服务器安装见[部署指南](docs/deploy.md)。
+
+## 界面截图
+
+| 照片地图 · 回放庐山实习路线 | 知识星系 · 浏览三维知识关系 |
+| --- | --- |
+| [![照片地图在地形底图上回放实习路线](docs/images/photo-map.webp)](docs/images/photo-map.webp) | [![知识星系三维视图，节点按类型着色](docs/images/knowledge-galaxy.webp)](docs/images/knowledge-galaxy.webp) |
+
+| 知识图谱 · 查看含鄱口讲解 | 知识演化 · 收录实习资料 |
+| --- | --- |
+| [![选中含鄱口节点后查看讲解正文](docs/images/knowledge-detail.webp)](docs/images/knowledge-detail.webp) | [![问山知识演化模式的资料收录界面](docs/images/source-intake.webp)](docs/images/source-intake.webp) |
 
 ## 文档与贡献
 
