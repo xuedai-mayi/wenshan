@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# 落地页只用于产品介绍，不索引任何运行数据。
+Sitemap: https://wenshan.example.com/sitemap.xml

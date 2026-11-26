@@ -41,3 +41,6 @@ data/knowledge/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# 本地备份归档（可能含模型凭据）
+/backups/

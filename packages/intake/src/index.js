@@ -84,6 +84,16 @@ async function readBody(req, maxBytes) {
   return Buffer.concat(chunks)
 }
 
+async function readJsonBody(req, maxBytes) {
+  const raw = await readBody(req, maxBytes)
+  if (!raw.length) return {}
+  try {
+    return JSON.parse(raw.toString('utf8'))
+  } catch {
+    throw new Error('请求体不是合法 JSON')
+  }
+}
+
 function geoJsonExtraction(buffer) {
   const parsed = JSON.parse(buffer.toString('utf8'))
   const features = parsed.type === 'FeatureCollection' ? parsed.features : parsed.type === 'Feature' ? [parsed] : []
@@ -463,6 +473,43 @@ export function apply(ctx, config = {}) {
       return sendJson(res, 200, buildPhotoMapData(ctx.lushanData))
     },
   }), 'wenshan-intake:photo-map-api')
+  // 健康检查：给部署方的探针、systemd 与容器 healthcheck 用。
+  // 只暴露聚合计数，不带任何正文、路径或凭据，可以安全地放在内网里被反复轮询。
+  ctx.effect(() => ctx.webServer.register({
+    kind: 'exact',
+    path: '/wenshan/api/health',
+    async handler(req, res) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { error: '仅支持 GET' })
+      let knowledge = { sources: 0, pendingDrafts: 0, openGaps: 0, publishedNodes: 0 }
+      let degraded = null
+      try {
+        const stats = ctx.lushanData.knowledge.stats()
+        knowledge = {
+          sources: stats.sources,
+          pendingDrafts: stats.pendingDrafts,
+          openGaps: stats.openGaps,
+          publishedNodes: stats.publishedNodes,
+        }
+      } catch (error) {
+        degraded = error instanceof Error ? error.message : String(error)
+      }
+      const dataDir = ctx.lushanData.dataDir
+      const required = ['site_data.json', 'graph_data.json', 'days_data.json', 'map_data.json']
+      const missing = required.filter(file => !fs.existsSync(path.join(dataDir, file)))
+      const body = {
+        status: degraded || missing.length ? 'degraded' : 'ok',
+        product: PRODUCT_NAME,
+        site: ctx.lushanData.site?.name || '',
+        checkedAt: new Date().toISOString(),
+        uptimeSeconds: Math.round(process.uptime()),
+        data: { ready: missing.length === 0, missing },
+        knowledge,
+        build: ctx.lushanData.build?.status?.() ?? null,
+        ...(degraded ? { error: degraded } : {}),
+      }
+      return sendJson(res, body.status === 'ok' ? 200 : 503, body)
+    },
+  }), 'wenshan-intake:health-api')
   ctx.effect(() => ctx.webServer.register({
     kind: 'exact',
     path: '/wenshan/assets/terrain.png',
@@ -548,6 +595,21 @@ export function apply(ctx, config = {}) {
         const gaps = ctx.lushanData.knowledge.listGaps(status === 'all' ? undefined : status)
         return sendJson(res, 200, { gaps, count: gaps.length })
       }
+      if (req.method === 'GET' && url.pathname === '/wenshan/api/evolution/build') {
+        return sendJson(res, 200, ctx.lushanData.build.status())
+      }
+      if (req.method === 'POST' && url.pathname === '/wenshan/api/evolution/build') {
+        try {
+          const body = await readJsonBody(req, 64 * 1024)
+          const sourceIds = Array.isArray(body.sourceIds) ? body.sourceIds.map(String) : []
+          const ids = sourceIds.length ? sourceIds : ctx.lushanData.knowledge.listSources().map(source => source.id)
+          if (!ids.length) return sendJson(res, 400, { error: '还没有可构建的资料' })
+          const summary = await ctx.lushanData.build.run(ids, { force: body.force === true })
+          return sendJson(res, summary.errors.length ? 207 : 200, summary)
+        } catch (error) {
+          return sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) })
+        }
+      }
       if (req.method === 'POST' && url.pathname === '/wenshan/api/evolution/sources') {
         try {
           const fileName = safeName(url.searchParams.get('name'))
@@ -574,7 +636,21 @@ export function apply(ctx, config = {}) {
             metadata: { ...(extracted.metadata || {}), relativePath: relativePath || undefined, channel: 'knowledge-evolution-folder' },
             structured: extracted.structured,
           })
-          return sendJson(res, 201, result)
+          sendJson(res, 201, result)
+          // 后台自动构建：先回响应，抽取失败也不影响上传结果。
+          // 模型与凭据来自宿主（设置 > 模型），这里只是把功劳簿记在原来的 sourceId 上。
+          if (ctx.lushanData.build
+            && ctx.lushanData.autoBuild !== false
+            && !result.duplicate
+            && !result.source?.metadata?.extractionError
+            && String(extracted.text || '').trim().length >= 200) {
+            void ctx.lushanData.build.run([result.source.id]).then((summary) => {
+              if (summary.errors.length) ctx.logger('wenshan-intake').warn(`自动构建未完成：${summary.errors.join('；')}`)
+            }).catch((error) => {
+              ctx.logger('wenshan-intake').warn(`自动构建异常：${error instanceof Error ? error.message : error}`)
+            })
+          }
+          return
         } catch (error) {
           return sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) })
         }

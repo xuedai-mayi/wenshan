@@ -15,7 +15,27 @@ import {
 } from './detect.mjs'
 import { preflightNode, pythonEnv, runInstall, spawnInherit } from './setup.mjs'
 import { createOverlay } from './overlay.mjs'
-import { banner, bullet, c, detail, fail, ok, table, warn } from './ui.mjs'
+import { banner, bullet, c, detail, duration, fail, ok, table, warn } from './ui.mjs'
+import { fetchHealth, restoreBackup, writeBackup } from './ops.mjs'
+
+function productVersion(root) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function flagValue(passthrough, names) {
+  for (let index = 0; index < passthrough.length; index++) {
+    const token = passthrough[index]
+    for (const name of names) {
+      if (token === name) return passthrough[index + 1]
+      if (token.startsWith(`${name}=`)) return token.slice(name.length + 1)
+    }
+  }
+  return undefined
+}
 
 async function ask(question, { fallback = true } = {}) {
   if (!process.stdin.isTTY || !process.stdout.isTTY) return fallback
@@ -260,7 +280,7 @@ export async function cmdEval({ root, passthrough }) {
 
 /** 测试：零依赖部分永远跑；需要运行时的部分在未构建时明确跳过而不是假装通过。 */
 export async function cmdTest({ root }) {
-  const targets = ['tests/store.test.mjs', 'tests/cli.test.mjs']
+  const targets = ['tests/store.test.mjs', 'tests/cli.test.mjs', 'tests/ops.test.mjs']
   const built = vendorBuilt(root)
   if (built) targets.push('tests/smoke.test.mjs', 'tests/product.test.mjs')
   else warn('内置运行时未构建，跳过 smoke / product 集成测试（npm run setup 后自动纳入）')
@@ -278,6 +298,121 @@ export async function cmdTest({ root }) {
   }
   ok(`${targets.length} 个测试文件通过`)
   return 0
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit++
+  }
+  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`
+}
+
+/**
+ * 备份：知识库 + 运行状态打成一个自描述归档。
+ * 默认包含 .wenshan-home（模型凭据），因为它决定了「换台机器还能不能直接用」；
+ * 要交给别人或放进网盘时用 --data-only。
+ */
+export async function cmdBackup({ root, passthrough }) {
+  const includeState = !passthrough.includes('--data-only')
+  const positional = passthrough.filter(token => !token.startsWith('-'))
+  const outDir = positional[0] ? path.resolve(positional[0]) : path.join(root, 'backups')
+  const home = resolveHome(root)
+  const started = Date.now()
+
+  banner('问山 · 备份', [
+    '知识库   data/knowledge',
+    includeState ? `运行状态 ${path.relative(root, home) || home}（含模型凭据）` : '运行状态 已排除（--data-only）',
+    `输出目录 ${path.relative(process.cwd(), outDir) || outDir}`,
+  ])
+
+  const result = writeBackup({ root, home, outDir, includeState, productVersion: productVersion(root) })
+  ok(`已写入 ${result.file}`)
+  bullet(`${result.stats.files} 个文件，原始 ${formatBytes(result.stats.bytes)}，归档 ${formatBytes(result.bytes)}`)
+  if (includeState) warn('归档内含模型 API Key 与会话，不要提交仓库、不要放公共网盘')
+  bullet(`恢复：${c.bold(`wenshan restore "${result.file}"`)}`)
+  bullet(`耗时 ${duration(Date.now() - started)}`)
+  return 0
+}
+
+/** 恢复：先给现状留副本，再逐文件校验 SHA-256 写回。 */
+export async function cmdRestore({ root, options, passthrough }) {
+  const file = passthrough.find(token => !token.startsWith('-'))
+  if (!file) throw new Error('用法：wenshan restore <备份文件> [--dry-run] [--yes]')
+  const archive = path.resolve(file)
+  if (!fs.existsSync(archive)) throw new Error(`找不到备份文件：${archive}`)
+  const home = resolveHome(root)
+  const dryRun = options.dryRun === true
+
+  if (!dryRun && options.yes !== true) {
+    if (!process.stdin.isTTY) throw new Error('非交互终端恢复需要显式确认：wenshan restore <文件> --yes')
+    const confirmed = await ask('将覆盖 data/knowledge 与运行状态目录，继续？[y/N]', { fallback: false })
+    if (!confirmed) {
+      fail('已取消，未改动任何文件')
+      return 1
+    }
+  }
+
+  banner('问山 · 恢复', [
+    `备份文件 ${path.relative(process.cwd(), archive) || archive}`,
+    `知识库   data/knowledge`,
+    `运行状态 ${path.relative(root, home) || home}`,
+    dryRun ? '模式     仅校验（--dry-run）' : '模式     写回磁盘',
+  ])
+
+  const result = restoreBackup({ file: archive, root, home, dryRun })
+  if (dryRun) {
+    ok(`校验通过：${result.files} 个文件，${formatBytes(result.bytes)}（未写入）`)
+    return 0
+  }
+  ok(`已恢复 ${result.files} 个文件，${formatBytes(result.bytes)}`)
+  if (result.createdAt) bullet(`备份时间 ${result.createdAt}`)
+  for (const snapshot of result.snapshots) bullet(`恢复前副本 ${snapshot}`)
+  bullet(`重新启动服务让知识库生效：${c.bold('npm start')}`)
+  return 0
+}
+
+/** 健康检查：探 /wenshan/api/health，给人看表格，给脚本 --json。 */
+export async function cmdHealth({ root, options, passthrough }) {
+  const explicit = flagValue(passthrough, ['--url'])
+  const port = Number(flagValue(passthrough, ['--port']) ?? options.port ?? DEFAULT_PORT)
+  const baseUrl = explicit ?? `http://${options.host ?? DEFAULT_HOST}:${port}`
+  const asJson = passthrough.includes('--json')
+  const result = await fetchHealth({ baseUrl })
+
+  if (asJson) {
+    process.stdout.write(`${JSON.stringify({ baseUrl, ...result }, null, 2)}\n`)
+    return result.ok ? 0 : 1
+  }
+
+  banner('问山 · 健康检查', [`目标 ${baseUrl}`])
+  if (!result.body) {
+    fail(`连不上：${result.error ?? `HTTP ${result.status}`}`)
+    detail('服务没起？先 npm start；端口不是 3080 就用 --url 指到实际地址')
+    return 1
+  }
+  const body = result.body
+  const rows = [
+    ['状态', body.status === 'ok' ? c.green('ok') : c.yellow(String(body.status))],
+    ['站点', body.site || '—'],
+    ['数据', body.data?.ready ? '齐全' : `缺少 ${(body.data?.missing || []).join('、')}`],
+    ['资料 / 待审草稿', `${body.knowledge?.sources ?? 0} / ${body.knowledge?.pendingDrafts ?? 0}`],
+    ['已发布节点', String(body.knowledge?.publishedNodes ?? 0)],
+    ['待补缺口', String(body.knowledge?.openGaps ?? 0)],
+    ['服务运行', `${Math.round(body.uptimeSeconds ?? 0)} 秒`],
+  ]
+  table(rows)
+  if (result.ok) {
+    ok('服务可用')
+    return 0
+  }
+  fail('服务可达但不健康')
+  if (body.error) detail(String(body.error))
+  return 1
 }
 
 /** 发布前自检：体检 + 测试 + 挂载层校验，一条命令替代原来的 PowerShell 脚本。 */

@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 快检：零依赖测试，没装运行时也能跑，PR 上先给结论。
+  unit:
+    name: 单元测试（零依赖）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm test
+
+  # 全链路：构建内置运行时 + 页面依赖 + Python 提取链，跑集成测试与体检。
+  integration:
+    name: 全链路（安装 → 测试 → 体检）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: 安装
+        run: npm run setup -- --yes
+      - name: 集成测试
+        run: npm run test:integration
+      - name: 环境体检
+        run: npm run doctor
+      - name: 挂载层与知识事件重放
+        run: npm test

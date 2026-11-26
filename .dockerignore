@@ -1,0 +1,18 @@
+# 构建上下文瘦身：本地状态、依赖缓存、备份与原始素材都不进镜像。
+.git
+.github
+.venv
+.wenshan-home
+backups
+data/photos
+data/knowledge
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+docs/images
+site
+tests
+deploy/*.md
+背景
+*.log
+.DS_Store

@@ -1,38 +1,95 @@
 # 问山（Wenshan）
 
+**把一次地理野外实习，变成一套会生长的知识库。**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-34d399.svg)](CHANGELOG.md)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522.19-339933.svg)](https://nodejs.org/)
+[![Deploy](https://img.shields.io/badge/deploy-local%20%7C%20docker%20%7C%20systemd-0f766e.svg)](docs/deploy.md)
 
-问山是一个面向地理野外实习的自成长知识图谱智能体。它把实习资料整理成可审核、可追溯的知识图谱，再用已发布的知识完成现场导览、教学讲解和问答；答不上来的问题会被登记为知识缺口，成为下一轮补资料的依据。
+讲义、PDF、照片、录音、GIS 数据丢进去，问山自动抽出知识草稿；教师审核、口令发布后，学生即可现场提问、看点位讲解、在真实地形上翻照片。答不上来的问题会自动登记为知识缺口，成为下一轮补资料的依据。
 
-仓库自带完整运行时和全部业务组件：安装脚本会在本机构建运行时，克隆后即可启动一个可离线使用的独立智能体服务。
+仓库自带完整运行时和全部业务组件：安装脚本在本机构建运行时，克隆后即可启动一个可离线使用的独立智能体服务。
 
 ![问山主界面](docs/images/home.png)
 
-## 架构
+> 产品落地页：[site/index.html](site/index.html) · 用户手册：[docs/product/user-guide.md](docs/product/user-guide.md) · 部署指南：[docs/deploy.md](docs/deploy.md)
+
+---
+
+## 目录
+
+- [为什么是问山](#为什么是问山)
+- [核心机制](#核心机制)
+- [功能](#功能)
+- [交付与运维](#交付与运维)
+- [运行环境](#运行环境)
+- [快速开始](#快速开始)
+- [使用流程](#使用流程)
+- [数据结构](#数据结构)
+- [项目结构](#项目结构)
+- [开发与测试](#开发与测试)
+- [文档地图](#文档地图)
+- [技术说明](#技术说明)
+- [许可与声明](#许可与声明)
+
+## 为什么是问山
+
+野外实习的知识生产有三个绕不开的问题：资料散落在网盘、相机和个人笔记里，下一届从零开始；讲解靠临场记忆，同一个点位不同讲法；学生的问题问完就散了，不会变成下一届的准备。
+
+通用聊天框能答，但给不出来源、不理解点位与路线，也不敢让错的内容进课堂。问山把流程做成产品：**AI 起草，人做决定，知识可追溯，缺口能闭环。**
+
+## 核心机制
 
 ```text
-packages/intake     页面与 HTTP 接口：知识图谱 / 知识星系 / 照片地图、资料上传、图谱与缺口接口
-packages/agent      agent 业务层：野外助教（只读）与知识演化（写入审核）两种模式的工具与提示词
-packages/georag     知识层：GeoRAG 三路检索、空间查询、不可变知识事件日志
-vendor/runtime      内置运行时：会话、模型调用、工具执行、Web 宿主
-config/wenshan.yml  产品挂载层：把上述组件装配成一个产品
-agents/             两个 agent 模式的配置
+资料收录 → 自动抽取草稿 → 人工审核 → 口令发布 → 现场问答 → 缺口登记 → 补资料 → 销缺口
+             ↑________________________ 自成长闭环 ________________________|
 ```
 
-两种模式共享同一份已发布知识，但工具权限严格隔离：知识演化模式可以收录资料、创建草稿、确认发布；野外助教模式只有只读检索工具和登记知识缺口的权限。细节见 [docs/architecture.md](docs/architecture.md)。
+三条硬约束，写在代码里而不是提示词里：
+
+1. **草稿不自动入库。** 发布必须在存储层收到完整口令 `确认发布 draft-xxxxxxxx`；「可以」「继续」不会触发。
+2. **只读与写入物理隔离。** 野外助教模式只注册检索与登记缺口工具；知识演化模式才能收录、建草稿、发布。
+3. **回答必须有来源。** 未覆盖时明确说「已发布资料中未覆盖」并登记缺口，而不是编一个答案。
+
+抽取是生成式的：同一份 1582 字资料两次跑出来的节点数实测为 13 / 18。这不是缺陷，是「发布前必须人工核对」这条设计成立的理由。
 
 ## 功能
 
-- 知识演化：收录文字、PDF、Word、图片、录音和常见 GIS 文件，生成知识草稿，人工确认后再发布。
-- 野外助教：只读正式知识库，支持概念检索、邻接关系、位置、气象和行程查询。
-- 知识缺口闭环：野外助教答不上来的问题自动登记为缺口待办，知识演化模式按被问次数补资料、发布后逐条销掉。
-- 照片地图：实习照片按讲解点聚簇落在真实地形晕渲底图上，支持逐日路线动画与"回放全程"时空演绎。
-- 知识星系：知识图谱的三维星系视图，节点按类型发光、关联线粒子流动，可旋转、聚焦并阅读节点正文。
-- 可交互图谱：搜索、筛选、拖动和定位节点，按需读取笔记正文。
-- 本地持久化：原始资料、提取结果、草稿、发布记录、缺口记录分开保存，重启后可恢复。
-- 权限隔离：野外助教没有资料写入和知识发布工具，只能登记缺口。
+- **知识演化**：收录文字、PDF、Word、图片、录音和常见 GIS 文件，**上传后自动抽取知识草稿**（用「设置 > 模型」里当前选中的模型，凭据不额外配置），人工确认后再发布。
+- **野外助教**：只读正式知识库，支持概念检索、邻接关系、位置、气象和行程查询。
+- **知识缺口闭环**：野外助教答不上来的问题自动登记为缺口待办，知识演化模式按被问次数补资料、发布后逐条销掉。
+- **照片地图**：实习照片按讲解点聚簇落在真实地形晕渲底图上，支持逐日路线动画与「回放全程」时空演绎。
+- **知识星系**：知识图谱的三维星系视图，节点按类型发光、关联线粒子流动，可旋转、聚焦并阅读节点正文。
+- **可交互图谱**：搜索、筛选、拖动和定位节点，按需读取笔记正文。
+- **本地持久化**：原始资料、提取结果、草稿、发布记录、缺口记录分开保存，重启后可恢复；事实源是 append-only 事件日志。
+- **权限隔离**：野外助教没有资料写入和知识发布工具，只能登记缺口。
+- **可运维**：一键备份/恢复、健康探针、容器镜像、systemd 单元、每日备份 timer。
 
 ![知识图谱页面：252 个节点、1657 条关联，按类型配色，左侧搜索与类型筛选](docs/images/knowledge-graph.png)
+
+检索质量有实测：152 题消融评测，完整配置 **Hit@1 91.4% / Hit@5 96.1%**，比纯词法 Hit@1 高 3.9 个百分点。报告见 [docs/evaluation/eval_report.md](docs/evaluation/eval_report.md)，`npm run eval` 可复现。
+
+## 交付与运维
+
+| 形态 | 命令 / 文件 | 适用 |
+| --- | --- | --- |
+| 本机 | `npm start` | 一位教师、一台笔记本 |
+| 内网服务 | [`deploy/wenshan.service`](deploy/wenshan.service) + [`deploy/Caddyfile`](deploy/Caddyfile) | 实习队 15—60 人现场共用 |
+| 容器 | [`Dockerfile`](Dockerfile) + [`docker-compose.yml`](docker-compose.yml) | 已有 Docker 运维体系 |
+| 每日备份 | [`deploy/wenshan-backup.timer`](deploy/wenshan-backup.timer) | 长期运行的服务器 |
+
+运维命令：
+
+| 命令 | 作用 |
+| --- | --- |
+| `wenshan backup [目录] [--data-only]` | 备份知识库与运行状态（自描述归档 + SHA-256；`--data-only` 不含凭据） |
+| `wenshan restore <归档> [--dry-run]` | 恢复；先给现状留副本，白名单外的路径整体拒绝 |
+| `wenshan health [--url URL] [--json]` | 探活 `GET /wenshan/api/health` |
+| `wenshan doctor` | 环境体检 |
+| `wenshan preflight` | 发布前自检：体检 + 测试 + 挂载层校验 |
+
+公网部署必须走反向代理做 TLS 与登录，并给应用加 `--trusted-host <域名>`；完整清单见 [docs/deploy.md](docs/deploy.md#安全清单上线前逐条打勾)。
 
 ## 运行环境
 
@@ -68,13 +125,11 @@ cd ~/任意目录
 wenshan           # 起 web 服务，并在就绪后自动打开浏览器
 ```
 
-敲 `wenshan` 不带子命令就等于 `wenshan start`：打印入口地址 → 等服务真正监听 → 用系统默认浏览器打开 http://127.0.0.1:3080/。CI、SSH 会话、无图形会话的 Linux 不会弹窗（只打印地址），也可以用 `--no-open` 或 `WENSHAN_OPEN=0` 关掉。
-
-启动后终端会打印可用地址（默认 `3080`，被占用时自动顺延到下一个空闲端口）：
+启动后终端会打印可用地址（默认 `3080`，被占用时自动顺延）：
 
 - 主界面：`http://127.0.0.1:3080/`
 - 知识图谱：`http://127.0.0.1:3080/wenshan/knowledge-graph`
-- 照片地图：`http://127.0.0.1:3080/wenshan/photo-map`（照片缩略图由 `npm run data` 生成）
+- 照片地图：`http://127.0.0.1:3080/wenshan/photo-map`
 - 知识星系：`http://127.0.0.1:3080/wenshan/knowledge-galaxy`
 
 常用命令：
@@ -85,6 +140,8 @@ wenshan           # 起 web 服务，并在就绪后自动打开浏览器
 | `npm start` | 同上（仓库内的等价写法，首次运行会先询问是否安装） |
 | `npm run setup` | 安装 / 修复依赖（幂等，`--force` 重跑） |
 | `npm run doctor` | 环境体检：Node、pnpm、Python、运行时、页面依赖、数据、端口、挂载层 |
+| `npm run health` | 探活运行中的服务 |
+| `npm run backup` / `npm run restore` | 备份 / 恢复知识库与运行状态 |
 | `npm run data` | 从原始资料重建 `data/*.json` |
 | `npm run terrain` | 生成地形晕渲底图 |
 | `npm run eval` | 152 题检索消融评测 |
@@ -99,8 +156,7 @@ wenshan           # 起 web 服务，并在就绪后自动打开浏览器
 npm start -- --port 3081                      # 换端口
 npm start -- --host 127.0.0.1 --port 0        # 让系统分配端口
 npm start -- --dry-run                        # 只打印渲染后的挂载层与启动命令
-wenshan start --port 3081                     # 换端口（全局命令下直接传，无需 --）
-wenshan --no-open                             # 只起服务，不打开浏览器
+wenshan start -- --trusted-host wenshan.example.com   # 域名反代时放行 authority
 ```
 
 依赖装了哪几组、缺哪几组，`npm run doctor` 会逐项列出；缺录音 / GIS 时该格式的上传只会降级，不影响文本与文档。
@@ -114,6 +170,10 @@ wenshan --no-open                             # 只起服务，不打开浏览�
 ### 收录资料
 
 切换到 `知识演化`，选择一个资料文件夹，或直接粘贴短文本。系统按 SHA-256 内容指纹去重，原件和提取结果会分别保存。
+
+资料落库后立即在后台自动构建草稿：正文按小节切块（默认 2500 字/块，超 60 块等距抽样），逐块调用「设置 > 模型」里选中的模型抽取七类节点（讲解点 / 地点 / 概念 / 物种 / 气象 / 每日 / 主线），合并去重、与已有图谱对账后落成待审核草稿。基础图谱里已有的同名同类节点不会重复新建，而是单独列为"待补充"。
+
+构建是后台任务，上传接口先返回，不阻塞页面。进度和失败原因在 `GET /wenshan/api/evolution/build` 里；要重跑某份资料：`POST /wenshan/api/evolution/build {"sourceIds":["src-…"],"force":true}`。模型没配 Key 时会在状态里直接提示去「设置 > 模型」补上。
 
 支持的主要格式：
 
@@ -155,7 +215,7 @@ data/knowledge/
 └─ structured/
 ```
 
-`data/knowledge/`、`data/photos/`、`.venv/`、`.wenshan-home/` 和本机凭据都已经加入 `.gitignore`。运行状态（会话、凭据、profile 层）落在 `.wenshan-home/`，删掉即重置。公开仓库前仍应检查原始实习记录、照片和地理数据的授权与隐私边界。
+`data/knowledge/`、`data/photos/`、`.venv/`、`.wenshan-home/`、`backups/` 和本机凭据都已经加入 `.gitignore`。运行状态（会话、凭据、profile 层）落在 `.wenshan-home/`，删掉即重置。公开仓库前仍应检查原始实习记录、照片和地理数据的授权与隐私边界。
 
 如需从原始 GDB、Obsidian 知识库和每日整理目录重建基础数据，先修改 `config/lushan.json` 中的三个来源路径，再运行：
 
@@ -167,7 +227,8 @@ npm run data -- config/other-site.json         # 换一个实习区
 ## 项目结构
 
 ```text
-bin/wenshan.mjs          统一命令行入口（start / setup / doctor / data / terrain / eval / test / preflight）
+bin/wenshan.mjs          统一命令行入口（start / setup / doctor / data / terrain / eval / test /
+                         preflight / backup / restore / health）
 config/                  站点配置与产品挂载配置
   lushan.json            庐山站点配置（数据源路径、图层映射、文案）
   wenshan.yml            产品挂载层
@@ -178,10 +239,12 @@ packages/
   georag/                GeoRAG 检索、空间查询、知识事件存储
   agent/                 工具注册与两种模式的系统提示词
   intake/                资料收录、HTTP 接口与图谱/地图/星系页面
-scripts/                 安装、启动、数据构建、评测与发布检查脚本
-  lib/                   命令行实现：环境探测、挂载层渲染、安装、启动
-tests/                   存储、冒烟、产品链路与浏览器验收测试
-docs/                    架构文档、评测报告与图表、界面截图
+scripts/                 安装、启动、数据构建、评测、运维与发布检查脚本
+  lib/ops.mjs            备份 / 恢复 / 健康探测
+deploy/                  systemd、Caddy、容器入口与备份 timer
+site/                    产品落地页
+tests/                   存储、冒烟、产品链路、运维层与浏览器验收测试
+docs/                    架构、产品文档、部署指南、评测报告与截图
 data/                    可公开的基础检索数据
 vendor/runtime/          随仓库分发的 agent 运行时源码
 ```
@@ -189,19 +252,34 @@ vendor/runtime/          随仓库分发的 agent 运行时源码
 ## 开发与测试
 
 ```bash
-npm test                  # 知识事件日志的写入与重放 + 命令行层（零外部依赖）
+npm test                  # 存储 + CLI + 运维层 + 构建（零外部依赖）
 npm run test:integration  # 冒烟 + 产品链路（需要先构建运行时）
 npm run eval              # 152 题检索消融评测，写 docs/evaluation/
 npm run preflight         # 跨平台发布自检：体检 + 测试 + 挂载层校验
 ```
 
-评测报告见 [docs/evaluation/eval_report.md](docs/evaluation/eval_report.md)。
+发布流程：push 到 `main` 由 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 跑单元与全链路；打 `v*` tag 由 [`release.yml`](.github/workflows/release.yml) 校验版本、构建镜像并冒烟健康接口、产出源码包与 SHA-256 并建 Release。改动约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 文档地图
+
+| 想知道什么 | 看哪里 |
+| --- | --- |
+| 产品定位、用户、指标、路线图 | [docs/product/PRD.md](docs/product/PRD.md) |
+| 教师/学生怎么操作 | [docs/product/user-guide.md](docs/product/user-guide.md) |
+| 常见问题 | [docs/product/faq.md](docs/product/faq.md) |
+| 装到服务器 / 公网 / 容器 | [docs/deploy.md](docs/deploy.md) |
+| 分层与数据流 | [docs/architecture.md](docs/architecture.md) |
+| 上传即构建管线 | [docs/self-build-pipeline.md](docs/self-build-pipeline.md) |
+| 检索评测 | [docs/evaluation/eval_report.md](docs/evaluation/eval_report.md) |
+| 安全与隐私 | [SECURITY.md](SECURITY.md) · [PRIVACY.md](PRIVACY.md) |
+| 版本变更 | [CHANGELOG.md](CHANGELOG.md) |
+| 支持与联系 | [SUPPORT.md](SUPPORT.md) |
 
 ## 技术说明
 
 问山自带运行时：会话、模型调用、工具执行、Web 界面与业务组件在安装后共同组成一个本机独立服务。图谱使用 `force-graph`，基础检索结合中文二元组 BM25、知识关系扩展和空间距离衰减。主服务只监听 `127.0.0.1`，适合本机演示和教学环境。
 
-如需部署到公网，应另外配置登录鉴权、HTTPS、限流、文件安全检查和数据备份，不能直接暴露本机服务端口。
+如需部署到公网，应另外配置登录鉴权、HTTPS、限流、文件安全检查和数据备份，不能直接暴露本机服务端口。仓库已提供 [Caddy 配置](deploy/Caddyfile) 与 [部署指南](docs/deploy.md) 覆盖这些项。
 
 ## 许可与声明
 

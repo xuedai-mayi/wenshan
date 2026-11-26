@@ -19,6 +19,14 @@
       name: __WENSHAN_GEORAG_PLUGIN__
       config:
         dataDir: !!js process.getBuiltinModule('node:path').join(process.cwd(), 'data')
+        # 上传即构建：资料落库后用「设置 > 模型」当前选择的模型抽取知识草稿。
+        # 这里只控制分块与并发，模型和凭据都由宿主提供，插件不读任何密钥。
+        build:
+          enabled: true
+          maxChars: 2500      # 单块目标字数
+          maxChunks: 60       # 单份资料最多抽取多少块，超了等距抽样
+          concurrency: 2      # 同时在飞的模型调用数
+          maxTokens: 8000     # 单次抽取的输出上限（关掉思考后仍要大一点，避免长块被截断）
 
     - id: wenshan-intake
       name: __WENSHAN_INTAKE_PLUGIN__

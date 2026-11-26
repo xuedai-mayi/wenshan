@@ -1,0 +1,45 @@
+# 问山 · systemd 服务单元（裸机 / 云主机）
+#
+#   sudo useradd --system --create-home --home-dir /var/lib/wenshan wenshan
+#   sudo mkdir -p /opt/wenshan && sudo chown -R wenshan:wenshan /opt/wenshan
+#   # 把仓库放到 /opt/wenshan，然后以 wenshan 用户执行一次安装：
+#   sudo -u wenshan bash -lc 'cd /opt/wenshan && npm run setup -- --yes'
+#   sudo cp deploy/wenshan.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now wenshan
+#
+# 服务只监听回环地址；对外入口用 deploy/Caddyfile。
+
+[Unit]
+Description=Wenshan — 地理野外实习自成长知识助手
+Documentation=https://github.com/xuedai-mayi/dsh-wenshan
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wenshan
+Group=wenshan
+WorkingDirectory=/opt/wenshan
+Environment=NODE_ENV=production
+Environment=WENSHAN_OPEN=0
+Environment=WENSHAN_HOME=/var/lib/wenshan/home
+Environment=WENSHAN_PYTHON=python3.11
+# 用域名经反向代理访问时，取消下面两行注释并改成实际域名（多个域名用空格分隔）：
+# Environment=WENSHAN_DOMAIN=wenshan.example.com
+# ExecStart=/usr/bin/env node bin/wenshan.mjs start --no-open --host 127.0.0.1 --port 3080 -- --trusted-host ${WENSHAN_DOMAIN}
+ExecStart=/usr/bin/env node bin/wenshan.mjs start --no-open --host 127.0.0.1 --port 3080
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=20
+KillSignal=SIGTERM
+
+# 最小权限：只允许写知识库、运行状态与备份目录。
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/wenshan/data/knowledge /var/lib/wenshan /var/backups/wenshan
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

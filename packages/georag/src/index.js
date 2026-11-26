@@ -9,6 +9,7 @@ import path from 'node:path'
 import z from '../../../vendor/runtime/vendor/schemastery/lib/index.mjs'
 import { createEngine } from './engine.js'
 import { KnowledgeStore } from './knowledge-store.js'
+import { createBuilder } from './build.js'
 
 export const name = 'georag'
 export const inject = []
@@ -19,6 +20,17 @@ export const Config = z.object({
    * 含 site_data / graph_data / days_data / map_data / photos_index.json。
    */
   dataDir: z.string().default(() => path.join(process.cwd(), 'data')),
+  /**
+   * 自动构建：上传资料后用宿主已配置的模型抽取知识草稿。
+   * 模型与凭据都来自宿主（设置 > 模型），这里只控制分块与并发。
+   */
+  build: z.object({
+    enabled: z.boolean().default(true),
+    maxChars: z.number().default(2500),
+    maxChunks: z.number().default(60),
+    concurrency: z.number().default(2),
+    maxTokens: z.number().default(8000),
+  }).default({}),
 })
 
 const readJson = (dir, file) => JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'))
@@ -43,6 +55,27 @@ export function apply(ctx, config = {}) {
     )
     return service
   }
+
+  // 自动构建：provider/model 取自「设置 > 模型」当前选择，凭据由宿主适配器解析，
+  // 本插件不读任何密钥。两个服务都可能晚于本插件挂载，所以在调用时懒解析。
+  const builder = createBuilder({
+    dataDir,
+    store: knowledge,
+    resolveLlm: () => ctx.reflect.get('llm', false),
+    resolveTarget: () => {
+      const selection = ctx.reflect.get('agentDefaultModel', false)?.currentSelection?.()
+      return selection?.provider && selection?.model ? { provider: selection.provider, model: selection.model } : undefined
+    },
+    log: (scope, level, message) => ctx.logger(scope)[level](message),
+    config: {
+      maxChars: config.build?.maxChars,
+      maxChunks: config.build?.maxChunks,
+      concurrency: config.build?.concurrency,
+      maxTokens: config.build?.maxTokens,
+    },
+  })
+  service.build = builder
+  service.autoBuild = config.build?.enabled !== false
 
   service.reload = load
   service.publishDraft = (id, confirmation) => {

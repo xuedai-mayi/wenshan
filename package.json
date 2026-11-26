@@ -1,8 +1,8 @@
 {
   "name": "wenshan",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "问山：面向地理野外实习的自成长知识图谱智能体",
+  "description": "问山：面向地理野外实习的自成长知识图谱智能体，把实习资料变成可审核、可追溯、可导览的知识库",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -18,12 +18,30 @@
     "data": "node bin/wenshan.mjs data",
     "terrain": "node bin/wenshan.mjs terrain",
     "eval": "node bin/wenshan.mjs eval",
-    "test": "node tests/store.test.mjs && node tests/cli.test.mjs",
+    "test": "node tests/store.test.mjs && node tests/cli.test.mjs && node tests/ops.test.mjs && node tests/build.test.mjs",
     "test:integration": "node tests/smoke.test.mjs && node tests/product.test.mjs",
-    "preflight": "node bin/wenshan.mjs preflight"
+    "preflight": "node bin/wenshan.mjs preflight",
+    "backup": "node bin/wenshan.mjs backup",
+    "restore": "node bin/wenshan.mjs restore",
+    "health": "node bin/wenshan.mjs health",
+    "test:ops": "node tests/ops.test.mjs"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/xuedai-mayi/dsh-wenshan.git"
+  },
+  "keywords": [
+    "geo-rag",
+    "knowledge-graph",
+    "field-trip",
+    "education",
+    "agent",
+    "llm",
+    "wenshan",
+    "gis"
+  ],
+  "homepage": "https://github.com/xuedai-mayi/dsh-wenshan#readme",
+  "bugs": {
+    "url": "https://github.com/xuedai-mayi/dsh-wenshan/issues"
   }
 }

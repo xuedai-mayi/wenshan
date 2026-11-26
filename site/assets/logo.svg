@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="问山">
+  <defs>
+    <linearGradient id="ridge" x1="0" y1="64" x2="64" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#34d399"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0b1512"/>
+  <path d="M8 48 L24 22 L34 38 L41 28 L56 48 Z" fill="url(#ridge)" opacity=".92"/>
+  <path d="M24 22 L28 28 L20 28 Z" fill="#e8fff7" opacity=".85"/>
+  <circle cx="41" cy="28" r="3" fill="#e8fff7"/>
+  <circle cx="16" cy="18" r="2.2" fill="#34d399"/>
+  <circle cx="50" cy="15" r="2.2" fill="#5eead4"/>
+  <path d="M16 18 L41 28 M50 15 L41 28 M16 18 L50 15" stroke="#5eead4" stroke-width="1.1" opacity=".55"/>
+</svg>

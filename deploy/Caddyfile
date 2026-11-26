@@ -1,0 +1,57 @@
+# 问山 · 公网入口（Caddy）
+#
+# Caddy 负责三件本机服务刻意不做的事：TLS、登录、请求体积限制。
+# 需要 Caddy 2.8+（basic_auth、request_body 语法）；旧版把 basic_auth 换成 basicauth。
+# 本机服务仍然只监听 127.0.0.1:3080，不直接暴露。
+#
+# 用法：
+#   1. 改下面两处：域名、邮箱。
+#   2. 生成口令哈希：caddy hash-password --plaintext '换成你的口令'
+#      把输出粘到 basic_auth 的用户名后面。
+#   3. sudo caddy validate --config deploy/Caddyfile
+#      sudo caddy run --config deploy/Caddyfile
+#
+# 浏览器信任栅栏：用域名访问时，服务端要额外接受该域名，启动命令加
+#   --trusted-host wenshan.example.com
+# （systemd 单元里已留好 Environment 变量，见 deploy/wenshan.service）
+
+{
+	email ops@example.com
+	# 首次签发证书需要 80/443 可达；内网自签可换成 tls internal
+}
+
+wenshan.example.com {
+	encode zstd gzip
+
+	# 单账号口令即可满足「实习队内部使用」；多人分权请换 forward_auth + 身份源。
+	basic_auth {
+		teacher $2a$14$REPLACE_WITH_CADDY_HASH_PASSWORD
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# 与挂载层 maxUploadBytes（200MB）对齐，留一点表单余量。
+	request_body {
+		max_size 210MB
+	}
+
+	# 问答是流式响应，关掉代理缓冲，否则会一段一段地蹦。
+	reverse_proxy 127.0.0.1:3080 {
+		flush_interval -1
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	log {
+		output file /var/log/caddy/wenshan-access.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+		format json
+	}
+}

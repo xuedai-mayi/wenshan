@@ -9,6 +9,9 @@
 //   npm run eval        152 题检索消融评测
 //   npm run test        测试（运行时未构建时自动跳过集成测试）
 //   npm run preflight   发布前自检
+//   npm run backup      备份知识库与运行状态
+//   npm run restore     从备份恢复
+//   npm run health      探活运行中的服务
 //
 // 也可以 npm link 之后直接用 `wenshan <command>`。运行时自己的参数用 `--` 之后的
 // 内容透传，例如 `npm start -- --trusted-host dev.internal:3080`。
@@ -17,7 +20,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  cmdData, cmdDoctor, cmdEval, cmdInstall, cmdPreflight, cmdStart, cmdTerrain, cmdTest,
+  cmdBackup, cmdData, cmdDoctor, cmdEval, cmdHealth, cmdInstall, cmdPreflight, cmdRestore,
+  cmdStart, cmdTerrain, cmdTest,
 } from '../scripts/lib/commands.mjs'
 import { DEFAULT_HOST } from '../scripts/lib/launch.mjs'
 import { c } from '../scripts/lib/ui.mjs'
@@ -34,6 +38,9 @@ const COMMANDS = {
   eval: cmdEval,
   test: cmdTest,
   preflight: cmdPreflight,
+  backup: cmdBackup,
+  restore: cmdRestore,
+  health: cmdHealth,
 }
 
 const ALIASES = {
@@ -45,6 +52,9 @@ const ALIASES = {
   status: 'doctor',
   'build-data': 'data',
   'build-terrain': 'terrain',
+  snapshot: 'backup',
+  recover: 'restore',
+  ping: 'health',
 }
 
 const HELP = `
@@ -59,9 +69,13 @@ ${c.bold('wenshan')} — 问山：地理野外实习自成长知识图谱智能�
   wenshan eval                          检索消融评测
   wenshan test                          测试
   wenshan preflight                     发布前自检
+  wenshan backup [目录] [--data-only]   备份知识库与运行状态（默认写入 backups/）
+  wenshan restore <备份文件> [--dry-run] 从备份恢复（会先给现状留副本）
+  wenshan health [--url URL] [--json]   探活运行中的服务
 
-在仓库内也可以写成 npm run <命令>（start / setup / doctor / data / terrain / eval / test / preflight），
-两者等价；npm 会自己吃掉一层参数，所以脚本形式要写成 npm start -- --port 3081。
+在仓库内也可以写成 npm run <命令>（start / setup / doctor / data / terrain / eval / test /
+preflight / backup / restore / health），两者等价；npm 会自己吃掉一层参数，
+所以脚本形式要写成 npm start -- --port 3081。
 
 选项
   -p, --port <port>       监听端口，默认 ${3080}；被占用时自动顺延
@@ -81,6 +95,9 @@ ${c.bold('wenshan')} — 问山：地理野外实习自成长知识图谱智能�
   wenshan start --port 3081              换端口（全局链接后无需 npm run）
   wenshan start --port 0                 让系统分配端口
   wenshan doctor                         看环境缺什么
+  wenshan backup                         备份到 backups/
+  wenshan backup ~/wenshan-backups --data-only   只备份知识库，不含凭据
+  wenshan health                         看服务是否健康
   WENSHAN_PYTHON=python3.12 wenshan doctor   钉住 Python 解释器
 `
 

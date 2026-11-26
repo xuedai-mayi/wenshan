@@ -1,0 +1,24 @@
+# 问山 · 备份任务单元（由 wenshan-backup.timer 触发）
+#
+#   sudo cp deploy/wenshan-backup.service deploy/wenshan-backup.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now wenshan-backup.timer
+#   systemctl list-timers wenshan-backup.timer
+#
+# 手动跑一次：sudo systemctl start wenshan-backup.service
+# 看日志：journalctl -u wenshan-backup.service -n 50
+
+[Unit]
+Description=Wenshan 知识库备份
+
+[Service]
+Type=oneshot
+User=wenshan
+Group=wenshan
+Environment=WENSHAN_APP_DIR=/opt/wenshan
+Environment=WENSHAN_BACKUP_DIR=/var/backups/wenshan
+Environment=WENSHAN_BACKUP_RETAIN=14
+ExecStart=/usr/local/bin/wenshan-backup
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

@@ -1,0 +1,42 @@
+# 问山 · 单机部署（知识库与运行状态都落在具名卷里）
+#
+#   docker compose up -d --build
+#   docker compose exec wenshan node bin/wenshan.mjs backup /app/backups
+#
+# 默认只绑 127.0.0.1，公网入口请交给 deploy/Caddyfile 或机房已有的反向代理。
+
+services:
+  wenshan:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: wenshan:1.0.0
+    container_name: wenshan
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3080:3080"
+    environment:
+      TZ: Asia/Shanghai
+      WENSHAN_OPEN: "0"
+      # 反向代理用域名访问时，把域名加进浏览器信任栅栏（逗号分隔），例如：
+      # WENSHAN_TRUSTED_HOSTS: "wenshan.example.com"
+    volumes:
+      - wenshan-data:/app/data/knowledge
+      - wenshan-home:/app/.wenshan-home
+      - wenshan-backups:/app/backups
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3080/wenshan/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  wenshan-data:
+  wenshan-home:
+  wenshan-backups:

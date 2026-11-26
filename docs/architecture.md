@@ -46,6 +46,23 @@
 - **运行时状态目录**：启动器把 `DSH_HOME` 指到项目内 `.wenshan-home/`（`WENSHAN_HOME` 可覆盖），并刻意不读继承来的 `DSH_HOME`。原因不只是整洁——内置运行时是随包分发的快照，可能比用户本机装的 dsh 旧，共享目录时旧快照会拒绝新版写出的 `credentials.yaml`，表现为「问山起不来」。
 - **Python 环境**：提取与数据管线依赖装在项目内 `.venv/`，不写系统 site-packages；依赖按 `requirements-core / audio / gis / tools` 分组，缺轮子只降级对应格式。
 
+## 运维层
+
+产品化后新增的一层，只依赖 Node 标准库，与业务代码解耦：
+
+| 组件 | 位置 | 职责 |
+| --- | --- | --- |
+| 归档 | `scripts/lib/ops.mjs` | 把 `data/knowledge/` 与 `.wenshan-home/` 打成 gzip(JSON)；清单含路径、大小、权限、SHA-256 |
+| 恢复 | 同上 | 路径白名单只认两个前缀；逐条校验大小与哈希；先给现状留 `<目录>-restore-<时间戳>` 副本 |
+| 探针 | `packages/intake/src/index.js` | `GET /wenshan/api/health`：聚合计数 + 数据文件齐全性 + 运行时长，不含正文/路径/凭据 |
+| 命令 | `bin/wenshan.mjs` | `backup` / `restore` / `health`，与 `npm run <cmd>` 等价 |
+
+归档格式刻意不用系统 tar：三个平台的 tar 参数并不一致，而备份恰恰是换机器时最需要的东西。自描述 JSON 里带 `format` / `version` / `createdAt` / `files[]`，任何版本的 Node 都能读；版本更高时明确拒绝，不做「猜着恢复」。
+
+探针只返回聚合数，所以可以放在内网被 systemd、容器 `HEALTHCHECK` 或外部监控高频轮询；`status` 为 `ok` 时 HTTP 200，数据缺失或存储读失败时 503 + `degraded`。
+
+部署侧（`deploy/`）把「对外暴露」这件事全部交给反向代理：应用永远只监听回环，Caddy 负责 TLS、登录、请求体积与 SSE 不缓冲；systemd 单元用 `ProtectSystem=strict` 加精确 `ReadWritePaths` 收紧权限。
+
 ## 两种模式与工具权限
 
 `packages/agent/src/index.js` 按 `mode` 只注册该模式允许的工具：

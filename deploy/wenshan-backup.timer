@@ -1,0 +1,20 @@
+# 问山 · 每日备份定时器
+#
+#   sudo cp deploy/wenshan-backup.service deploy/wenshan-backup.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now wenshan-backup.timer
+#   systemctl list-timers wenshan-backup.timer
+#
+# 时间点带随机延迟，避免和其它机器同时压盘的抖动。
+
+[Unit]
+Description=每日备份问山知识库
+
+[Timer]
+OnCalendar=*-*-* 03:20:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=wenshan-backup.service
+
+[Install]
+WantedBy=timers.target
