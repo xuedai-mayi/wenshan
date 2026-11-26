@@ -32,10 +32,10 @@
     <header class="top">
       <a class="brand" href="/" aria-label="返回问山">
         <svg class="brand-mark" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M4 31 15.5 12l5.7 8.1L26.4 13 36 31H4Z" fill="#a9d1af"/><path d="m12.3 31 8.9-10.9 3.1 4.3 3.4-4.4 5.9 11H12.3Z" fill="#527c5c"/></svg>
-        <b>问山</b><span>地理野外实习自成长智能助手</span>
+        <b>问山</b>
       </a>
       <i class="top-divider"></i><div class="view-name">知识图谱</div>
-      <div class="dataset"><i></i><b id="stat">载入中</b><span>资料与知识关联</span></div>
+      <div class="dataset"><i></i><b id="stat">载入中</b></div>
       <a class="back" href="/wenshan/knowledge-galaxy">知识星系</a>
       <a class="back" href="/wenshan/photo-map">照片地图</a>
       <a class="back" href="/">返回知识演化</a>
@@ -56,7 +56,7 @@
       <div class="panel gap-area" id="gap-area" hidden>
         <div class="filter-title"><span>待补充问题</span><span class="gap-count" id="gap-count"></span></div>
         <ol class="gap-list" id="gap-list"></ol>
-        <div class="gap-tip">这些是野外助教现场答不上来的问题。在「知识演化」对话里发送“查看知识缺口”，补充资料并发布后即可逐条销掉。</div>
+        <div class="gap-tip">野外助教没答上来的问题。补资料、发布后逐条销掉；在「知识演化」里发送「查看知识缺口」查看。</div>
       </div>
     </section>
 
@@ -72,8 +72,8 @@
       <div class="relations" id="relations"></div>
     </aside>
 
-    <div class="guide"><kbd>单击</kbd><span>阅读</span><kbd>双击</kbd><span>定位</span><kbd>拖动</kbd><span>平移或调整节点</span></div>
-    <div class="hint" id="hint"><strong>图谱已就绪</strong>，先试着点一个节点。</div>
+    <div class="guide"><kbd>单击</kbd><span>阅读</span><kbd>双击</kbd><span>定位</span><kbd>拖动</kbd><span>移动</span></div>
+    <div class="hint" id="hint" hidden></div>
     <div class="controls">
       <button class="control" id="zoom-in" type="button" title="放大" aria-label="放大">+</button>
       <button class="control" id="zoom-out" type="button" title="缩小" aria-label="缩小">−</button>
@@ -82,7 +82,7 @@
       </button>
       <button class="control reset" id="relayout" type="button" title="重新布局" aria-label="重新布局">↻</button>
     </div>
-    <div class="loading" id="loading"><span>正在整理资料之间的联系</span><div class="loading-bars" aria-hidden="true"><i></i><i></i><i></i></div></div>
+    <div class="loading" id="loading"><span>正在加载知识图谱</span><div class="loading-bars" aria-hidden="true"><i></i><i></i><i></i></div></div>
   </div>
 
   <script src="/wenshan/assets/force-graph.min.js"></script>
@@ -120,7 +120,7 @@
       let lastNodeClick = null
 
       if (!window.ForceGraph) {
-        loading.innerHTML = '<span class="error">图谱组件加载失败，请检查网络后刷新页面。</span>'
+        loading.innerHTML = '<span class="error">图谱组件没加载起来，刷新页面再试。</span>'
         return
       }
 
@@ -416,7 +416,8 @@
           lastNodeClick = null
           pointer.node.fx = pointer.node.x
           pointer.node.fy = pointer.node.y
-          hint.innerHTML = '<strong>节点位置已调整</strong>，点击重新布局可恢复自动排布。'
+          hint.innerHTML = '<strong>节点位置已调整</strong>，用「重新布局」恢复自动排布。'
+          hint.hidden = false
           hint.classList.remove('fade')
         } else {
           restorePointerNode(pointer)
@@ -618,7 +619,7 @@
         if (detail && detail.truncated) {
           const limit = document.createElement('div')
           limit.className = 'note-limit'
-          limit.textContent = '这份资料较长，当前显示前 30,000 字。'
+          limit.textContent = '资料较长，这里只显示了开头。'
           noteContent.append(limit)
         }
       }
@@ -646,7 +647,7 @@
             cache: 'no-store',
             signal: controller.signal,
           })
-          if (!response.ok) throw new Error('接口返回 ' + response.status)
+          if (!response.ok) throw new Error('HTTP ' + response.status)
           const detail = await response.json()
           detailCache.set(node.id, detail)
           if (selected && selected.id === node.id) renderNodeBody(node, detail)
@@ -655,7 +656,7 @@
           if (!selected || selected.id !== node.id) return
           const message = document.createElement('p')
           message.className = 'note-empty error'
-          message.textContent = '节点内容读取失败，请稍后重试。'
+          message.textContent = '正文没读出来，再点一次这个节点。'
           noteContent.replaceChildren(message)
         } finally {
           if (detailRequest === controller) detailRequest = null
@@ -664,9 +665,9 @@
       function makeSummary(node) {
         if (node.hasContent) return ''
         if (node.summary) return node.summary
-        if (node.kind === '资料') return '这份原始资料已收录到当前实习资料夹。图谱依据文件名、目录和已提取内容建立关联。'
-        if (node.kind === '草稿') return '这是待处理的知识草稿，完成核对后可以进入正式知识库。'
-        return '选择相邻节点，可以继续追踪这条知识与资料之间的关联。'
+        if (node.kind === '资料') return '资料已收录，还没有可读的正文。'
+        if (node.kind === '草稿') return '草稿还没发布。在「知识演化」里审核并发布后，才会进入正式知识库。'
+        return ''
       }
       function displayNode(node) {
         document.querySelector('#detail-dot').style.background = color(node.kind)
@@ -684,7 +685,7 @@
         const linkedNodes = [...linked].map(id => byId.get(id)).filter(Boolean).sort((a, b) => (degree.get(b.id) || 0) - (degree.get(a.id) || 0)).slice(0, 14)
         if (!linkedNodes.length) {
           const empty = document.createElement('span')
-          empty.textContent = '暂未形成直接关联'
+          empty.textContent = '还没有关联'
           empty.style.color = '#8fa79a'
           empty.style.fontSize = '11px'
           relationBox.append(empty)
@@ -797,9 +798,10 @@
           delete node.fy
         }
         graph.d3ReheatSimulation()
-        hint.innerHTML = '<strong>正在重新布局</strong>，图谱会在片刻后稳定。'
+        hint.innerHTML = '<strong>正在重新布局</strong>'
+        hint.hidden = false
         hint.classList.remove('fade')
-        window.setTimeout(() => hint.classList.add('fade'), 3600)
+        window.setTimeout(() => { hint.classList.add('fade'); window.setTimeout(() => { hint.hidden = true }, 420) }, 3600)
       }
       function scheduleInitialFit(attempt = 0) {
         window.cancelAnimationFrame(initialFitFrame)
@@ -825,14 +827,14 @@
             const centerY = visibleNodes.length % 2 ? ys[middle] : (ys[middle - 1] + ys[middle]) / 2
             graph.centerAt(centerX, centerY, 0)
           }
-          window.setTimeout(() => hint.classList.add('fade'), 5200)
+          window.setTimeout(() => { hint.classList.add('fade'); window.setTimeout(() => { hint.hidden = true }, 420) }, 5200)
         })
       }
       async function load() {
         loading.classList.remove('hidden')
         try {
           const response = await fetch('/wenshan/api/evolution/graph', { cache: 'no-store' })
-          if (!response.ok) throw new Error('接口返回 ' + response.status)
+          if (!response.ok) throw new Error('HTTP ' + response.status)
           const payload = await response.json()
           nodes = (payload.nodes || []).map(node => ({ ...node, id: String(node.id), title: String(node.title || '未命名知识') }))
           links = (payload.links || []).map(link => ({ ...link, source: String(link.source), target: String(link.target) }))
@@ -870,7 +872,8 @@
             if (target) window.setTimeout(() => selectNode(target, true), 900)
           }
         } catch (error) {
-          loading.innerHTML = '<span class="error">知识图谱加载失败：' + String(error.message || error) + '</span>'
+          console.error(error)
+          loading.innerHTML = '<span class="error">知识图谱没加载出来，刷新页面再试。</span>'
           return
         }
         loading.classList.add('hidden')
@@ -895,7 +898,7 @@
             item.title = '首次提问 ' + String(gap.firstReportedAt || '').slice(0, 10)
               + (gap.notes && gap.notes.length ? '\n线索：' + gap.notes.join('；') : '')
             const badge = document.createElement('i')
-            badge.textContent = '×' + gap.count
+            badge.textContent = gap.count + ' 次'
             const question = document.createElement('span')
             question.textContent = gap.question
             item.append(badge, question)

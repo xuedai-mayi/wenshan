@@ -73,12 +73,12 @@ function sendText(res, req, file, contentType) {
 
 async function readBody(req, maxBytes) {
   const declared = Number(req.headers['content-length'] || 0)
-  if (declared > maxBytes) throw new Error('文件超过 ' + Math.round(maxBytes / 1024 / 1024) + ' MB 限制')
+  if (declared > maxBytes) throw new Error('文件超过 ' + Math.round(maxBytes / 1024 / 1024) + ' MB，拆分后再传。')
   const chunks = []
   let size = 0
   for await (const chunk of req) {
     size += chunk.length
-    if (size > maxBytes) throw new Error('文件超过 ' + Math.round(maxBytes / 1024 / 1024) + ' MB 限制')
+    if (size > maxBytes) throw new Error('文件超过 ' + Math.round(maxBytes / 1024 / 1024) + ' MB，拆分后再传。')
     chunks.push(chunk)
   }
   return Buffer.concat(chunks)
@@ -525,7 +525,7 @@ export function apply(ctx, config = {}) {
         })
         res.end(req.method === 'HEAD' ? undefined : body)
       } catch {
-        return sendJson(res, 404, { error: '地形底图尚未生成，请运行 scripts/build_terrain.py' })
+        return sendJson(res, 404, { error: '地形底图还没生成，先用矢量底图显示。' })
       }
     },
   }), 'wenshan-intake:terrain-image')
@@ -538,7 +538,7 @@ export function apply(ctx, config = {}) {
         const body = JSON.parse(await fs.promises.readFile(path.join(ctx.lushanData.dataDir, 'terrain.json'), 'utf8'))
         return sendJson(res, 200, body)
       } catch {
-        return sendJson(res, 404, { error: '地形底图尚未生成' })
+        return sendJson(res, 404, { error: '地形底图还没生成' })
       }
     },
   }), 'wenshan-intake:terrain-meta')
@@ -551,7 +551,7 @@ export function apply(ctx, config = {}) {
       let raw = ''
       try { raw = decodeURIComponent(url.pathname.slice('/wenshan/photos/'.length)) } catch { raw = '' }
       const name = path.basename(raw)
-      if (!name || name !== raw || !/^[^\\/]+\.jpe?g$/i.test(name)) return sendJson(res, 404, { error: '没有这张照片' })
+      if (!name || name !== raw || !/^[^\\/]+\.jpe?g$/i.test(name)) return sendJson(res, 404, { error: '没找到这张照片' })
       try {
         const body = await fs.promises.readFile(path.join(ctx.lushanData.dataDir, 'photos', name))
         res.writeHead(200, {
@@ -562,7 +562,7 @@ export function apply(ctx, config = {}) {
         })
         res.end(req.method === 'HEAD' ? undefined : body)
       } catch {
-        return sendJson(res, 404, { error: '照片文件尚未生成，请先运行 npm run data' })
+        return sendJson(res, 404, { error: '照片缩略图还没生成。' })
       }
     },
   }), 'wenshan-intake:photo-files')
@@ -580,7 +580,7 @@ export function apply(ctx, config = {}) {
       if (req.method === 'GET' && url.pathname === '/wenshan/api/evolution/node') {
         try {
           const detail = readKnowledgeGraphNode(ctx.lushanData, url.searchParams.get('id'))
-          if (!detail) return sendJson(res, 404, { error: '没有找到这个知识节点' })
+          if (!detail) return sendJson(res, 404, { error: '没找到这个节点' })
           return sendJson(res, 200, detail)
         } catch (error) {
           return sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) })
@@ -614,7 +614,7 @@ export function apply(ctx, config = {}) {
         try {
           const fileName = safeName(url.searchParams.get('name'))
           const kind = detectKind(fileName)
-          if (!kind) throw new Error('不支持此文件类型。支持 TXT、Markdown、CSV、PDF、DOCX、图片、音频、GeoJSON、GPX，以及包含 Shapefile 或 GDB 的 ZIP。')
+          if (!kind) throw new Error('这个文件类型收不了。可收：TXT、Markdown、CSV、PDF、DOCX、图片、录音、GeoJSON、GPX、含 Shapefile 或 GDB 的 ZIP。')
           const buffer = await readBody(req, options.maxUploadBytes)
           let extracted
           try {
@@ -625,7 +625,7 @@ export function apply(ctx, config = {}) {
               metadata: { extractionError: error instanceof Error ? error.message : String(error) },
             }
           }
-          if (String(extracted.text || '').length > MAX_EXTRACTED_TEXT) throw new Error('提取文本超过 ' + MAX_EXTRACTED_TEXT + ' 字，请拆分文件后重试')
+          if (String(extracted.text || '').length > MAX_EXTRACTED_TEXT) throw new Error('正文超过 ' + Math.round(MAX_EXTRACTED_TEXT / 10000) + ' 万字，拆分后再传。')
           const relativePath = safeRelativePath(url.searchParams.get('path'))
           const result = ctx.lushanData.knowledge.importSource({
             name: fileName,

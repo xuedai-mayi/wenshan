@@ -42,8 +42,8 @@
   const folderEntry = document.createElement('button')
   folderEntry.id = 'wenshan-folder-entry'
   folderEntry.type = 'button'
-  folderEntry.title = '选择实习资料总文件夹'
-  folderEntry.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 18 9.2 8.5l3.1 4.4L15.2 9 21 18H3Z" fill="currentColor" opacity=".86"/><path d="M12 4v6.4m0-6.4L9.7 6.3M12 4l2.3 2.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>选择资料夹</span>'
+  folderEntry.title = '收录资料'
+  folderEntry.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 18 9.2 8.5l3.1 4.4L15.2 9 21 18H3Z" fill="currentColor" opacity=".86"/><path d="M12 4v6.4m0-6.4L9.7 6.3M12 4l2.3 2.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>收录资料</span>'
   document.body.append(folderEntry)
 
   const panel = document.createElement('section')
@@ -51,7 +51,7 @@
   panel.setAttribute('role', 'dialog')
   panel.setAttribute('aria-modal', 'true')
   panel.setAttribute('aria-labelledby', 'wenshan-folder-title')
-  panel.innerHTML = '<div class="wenshan-folder-card"><button class="wenshan-folder-close" type="button" aria-label="关闭">×</button><div class="wenshan-folder-head"><div class="wenshan-folder-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 18 9.2 8.5l3.1 4.4L15.2 9 21 18H3Z" fill="currentColor" opacity=".9"/><path d="M12 4v6.4m0-6.4L9.7 6.3M12 4l2.3 2.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div><h2 id="wenshan-folder-title">选择实习资料总文件夹</h2><p>请选中所有照片、录音、文档和空间数据所在的同一个文件夹。</p></div></div><div class="wenshan-folder-body"><div class="wenshan-folder-well"><strong id="wenshan-folder-summary">尚未选择资料夹</strong><span>系统会保留原文件和目录位置，自动提取可读内容，并生成资料关联图谱。</span></div><div class="wenshan-folder-actions"><button class="wenshan-folder-primary" type="button" data-action="choose">选择资料总文件夹</button><button class="wenshan-folder-secondary" type="button" data-action="close">稍后再说</button><input data-role="files" type="file" hidden multiple webkitdirectory directory></div><div class="wenshan-folder-status" data-role="status"></div><div class="wenshan-folder-progress" hidden><i></i></div><div class="wenshan-folder-result" data-role="result" hidden></div></div></div>'
+  panel.innerHTML = '<div class="wenshan-folder-card"><button class="wenshan-folder-close" type="button" aria-label="关闭">×</button><div class="wenshan-folder-head"><div class="wenshan-folder-mark"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 18 9.2 8.5l3.1 4.4L15.2 9 21 18H3Z" fill="currentColor" opacity=".9"/><path d="M12 4v6.4m0-6.4L9.7 6.3M12 4l2.3 2.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div><div><h2 id="wenshan-folder-title">收录资料</h2><p>选中资料所在的文件夹，子文件夹会一起收录。</p></div></div><div class="wenshan-folder-body"><div class="wenshan-folder-well"><strong id="wenshan-folder-summary">还没有选择文件夹</strong><span>原文件保留，正文自动提取。</span></div><div class="wenshan-folder-actions"><button class="wenshan-folder-primary" type="button" data-action="choose">选择文件夹</button><button class="wenshan-folder-secondary" type="button" data-action="close">取消</button><input data-role="files" type="file" hidden multiple webkitdirectory directory></div><div class="wenshan-folder-status" data-role="status"></div><div class="wenshan-folder-progress" hidden><i></i></div><div class="wenshan-folder-result" data-role="result" hidden></div></div></div>'
   document.body.append(panel)
 
   const input = panel.querySelector('[data-role="files"]')
@@ -86,14 +86,15 @@
     result.hidden = true
     status.textContent = ''
     if (!queuedFiles.length) {
-      summary.textContent = '没有找到可收录的文件'
+      summary.textContent = '这个文件夹里没有能收录的文件'
+      status.textContent = '可收：TXT、Markdown、CSV、PDF、DOCX、图片、录音、GeoJSON、GPX、含 Shapefile 或 GDB 的 ZIP。'
       return
     }
     const relative = queuedFiles[0].webkitRelativePath || queuedFiles[0].name
     const folder = relative.split('/')[0]
     const total = queuedFiles.reduce((sum, file) => sum + file.size, 0)
-    summary.textContent = folder + '，共 ' + queuedFiles.length + ' 份文件，' + bytes(total)
-    chooseButton.textContent = '收录并生成图谱'
+    summary.textContent = folder + ' · ' + queuedFiles.length + ' 份文件 · ' + bytes(total)
+    chooseButton.textContent = '收录资料'
   }
 
   async function uploadFile(file) {
@@ -107,7 +108,7 @@
       body: file,
     })
     const payload = await response.json()
-    if (!response.ok) throw new Error(payload.error || '收录失败')
+    if (!response.ok) throw new Error(payload.error || '这个文件没收进来')
     return payload
   }
 
@@ -142,17 +143,20 @@
     await Promise.all(Array.from({ length: Math.min(2, total) }, worker))
     try {
       const graph = await fetch(api + '/graph', { cache: 'no-store' }).then(response => response.json())
-      status.textContent = failed ? '已收录 ' + (total - failed) + ' 份文件，' + failed + ' 份未成功。' : '已收录全部 ' + total + ' 份文件。'
+      status.textContent = failed ? '已收录 ' + (total - failed) + ' 份，' + failed + ' 份没收进来，可以再选一次。' : '已收录 ' + total + ' 份。'
       status.className = 'wenshan-folder-status' + (failed ? ' wenshan-folder-error' : '')
-      result.innerHTML = '资料关联图谱已生成，当前有 ' + graph.stats.graphNodes + ' 个节点、' + graph.stats.graphLinks + ' 条关联。<a href="/wenshan/knowledge-graph">查看知识图谱</a>'
+      result.innerHTML = '图谱现在有 ' + graph.stats.graphNodes + ' 个节点、' + graph.stats.graphLinks + ' 条关联。<a href="/wenshan/knowledge-graph">查看知识图谱</a>'
       result.hidden = false
-      chooseButton.textContent = '已完成'
     } catch (error) {
-      status.textContent = '资料已收录，但图谱加载失败：' + error.message
+      status.textContent = '资料已收录，图谱没刷新出来。打开知识图谱看看。'
       status.className = 'wenshan-folder-status wenshan-folder-error'
     } finally {
       isUploading = false
       chooseButton.disabled = false
+      queuedFiles = []
+      input.value = ''
+      summary.textContent = '还没有选择文件夹'
+      chooseButton.textContent = '选择文件夹'
     }
   }
 

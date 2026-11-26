@@ -270,6 +270,7 @@ npm run preflight         # 跨平台发布自检：体检 + 测试 + 挂载层�
 | 产品定位、用户、指标、路线图 | [docs/product/PRD.md](docs/product/PRD.md) |
 | 教师/学生怎么操作 | [docs/product/user-guide.md](docs/product/user-guide.md) |
 | 常见问题 | [docs/product/faq.md](docs/product/faq.md) |
+| 界面文案规范（叫法、按钮、报错、空态） | [docs/product/ux-copy.md](docs/product/ux-copy.md) |
 | 装到服务器 / 公网 / 容器 | [docs/deploy.md](docs/deploy.md) |
 | 分层与数据流 | [docs/architecture.md](docs/architecture.md) |
 | 上传即构建管线 | [docs/self-build-pipeline.md](docs/self-build-pipeline.md) |
