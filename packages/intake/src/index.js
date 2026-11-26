@@ -515,7 +515,7 @@ export function apply(ctx, config = {}) {
         })
         res.end(req.method === 'HEAD' ? undefined : body)
       } catch {
-        return sendJson(res, 404, { error: '照片文件尚未生成，请先运行 scripts/update-data.bat' })
+        return sendJson(res, 404, { error: '照片文件尚未生成，请先运行 npm run data' })
       }
     },
   }), 'wenshan-intake:photo-files')

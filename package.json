@@ -8,13 +8,22 @@
   "engines": {
     "node": ">=22.19"
   },
+  "bin": {
+    "wenshan": "bin/wenshan.mjs"
+  },
   "scripts": {
-    "start": "node scripts/run.mjs web",
-    "data": "py -3.11 scripts/build_data.py config/lushan.json",
-    "terrain": "py -3.11 scripts/build_terrain.py",
-    "eval": "node scripts/eval_qa.mjs",
-    "test": "node tests/store.test.mjs",
+    "start": "node bin/wenshan.mjs start",
+    "setup": "node bin/wenshan.mjs install",
+    "doctor": "node bin/wenshan.mjs doctor",
+    "data": "node bin/wenshan.mjs data",
+    "terrain": "node bin/wenshan.mjs terrain",
+    "eval": "node bin/wenshan.mjs eval",
+    "test": "node tests/store.test.mjs && node tests/cli.test.mjs",
     "test:integration": "node tests/smoke.test.mjs && node tests/product.test.mjs",
-    "preflight": "pwsh -File scripts/preflight.ps1"
+    "preflight": "node bin/wenshan.mjs preflight"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xuedai-mayi/dsh-wenshan.git"
   }
 }

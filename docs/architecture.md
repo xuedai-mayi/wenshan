@@ -21,7 +21,30 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-`config/wenshan.yml` 是产品挂载层：它把 `packages/georag` 与 `packages/intake` 挂到运行时上，并把 `agents/` 声明为可选的 agent 模式目录。`scripts/run.mjs` 负责替换其中的插件占位符，再以 `--patch` 启动运行时。
+`config/wenshan.yml` 是产品挂载层：它把 `packages/georag` 与 `packages/intake` 挂到运行时上，并把 `agents/` 声明为可选的 agent 模式目录。
+
+挂载层是模板，五处占位符在启动时由 `scripts/lib/overlay.mjs` 注入本机真实值：两个插件入口、提取器路径、Python 解释器、解释器前置参数。注入值用 JSON 编码写入（JSON 字符串即 YAML 双引号标量），因此同一份配置在三个平台上通用，不需要 bat 里拼字符串，也不必为 Python 版本改配置。渲染结果写到系统临时目录，作为 `--patch` 交给运行时，进程退出即删除。
+
+## 安装与启动
+
+`bin/wenshan.mjs` 是唯一入口，通过 `package.json` 的 `bin` 暴露成 `wenshan` 命令；`npm run <cmd>` 只是它的别名。仓库里没有平台专用脚本。
+
+| 层 | 职责 |
+| --- | --- |
+| `bin/wenshan.mjs` | 命令解析、`--help`、退出码 |
+| `scripts/lib/detect.mjs` | Node / pnpm / Python 探测、端口可用性、已构建状态判定 |
+| `scripts/lib/overlay.mjs` | 挂载层占位符渲染 |
+| `scripts/lib/setup.mjs` | 幂等安装计划：构建运行时 → 页面依赖 → 提取依赖 → 挂载层校验 |
+| `scripts/lib/launch.mjs` | 端口顺延、拉起运行时的 web 面、就绪后打开浏览器、信号与临时文件清理 |
+
+启动器的默认命令是 `start`：敲 `wenshan` 即起 web 面，并等到端口真正监听后再用系统默认浏览器打开入口（`browserCommand` 按平台选 `open` / `cmd /c start` / `xdg-open`；CI、SSH、无图形会话自动跳过，`--no-open` 可强制关闭）。**就绪判定用端口探测而不是猜时间**，否则浏览器会先于服务到达。
+
+启动器只做「准备环境 + 传参」两件事，业务语义仍然只存在于 `packages/` 里。启动路径与当前工作目录无关：状态、配置、相对路径都由 `import.meta.url` 推出的仓库根决定，子进程 `cwd` 也钉在仓库根，因此 `npm link` 之后从任意目录执行 `wenshan start` 行为一致。
+
+两条隔离约定，写在这里免得以后又被"顺手"合回去：
+
+- **运行时状态目录**：启动器把 `DSH_HOME` 指到项目内 `.wenshan-home/`（`WENSHAN_HOME` 可覆盖），并刻意不读继承来的 `DSH_HOME`。原因不只是整洁——内置运行时是随包分发的快照，可能比用户本机装的 dsh 旧，共享目录时旧快照会拒绝新版写出的 `credentials.yaml`，表现为「问山起不来」。
+- **Python 环境**：提取与数据管线依赖装在项目内 `.venv/`，不写系统 site-packages；依赖按 `requirements-core / audio / gis / tools` 分组，缺轮子只降级对应格式。
 
 ## 两种模式与工具权限
 
@@ -83,9 +106,9 @@
 ## 测试与验收
 
 - `tests/store.test.mjs`：知识事件日志的写入与重放，零外部依赖。
+- `tests/cli.test.mjs`：版本/解释器探测、挂载层渲染、端口顺延、安装状态判定，零外部依赖。
 - `tests/smoke.test.mjs`：真实运行时上下文里注册工具并逐个执行。
 - `tests/product.test.mjs`：来源→草稿→确认门禁→发布热更新→重放→只读隔离→缺口闭环→照片地图数据。
 - `scripts/eval_qa.mjs`：152 题检索消融评测，产出 `docs/evaluation/`。
-- `scripts/preflight.ps1`：构建、配置校验、挂载校验、冒烟与产品链路测试。
 
-后两者依赖已构建的运行时（先跑 `scripts/install.bat`）。
+`npm test` 只跑零依赖的两个文件；`npm run test:integration` 与 `npm run eval` 依赖已构建的运行时（先跑 `npm run setup`）。`npm run preflight` 把体检、测试与挂载层校验串成一条跨平台命令。

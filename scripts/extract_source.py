@@ -27,7 +27,7 @@ def pdf(path: Path) -> dict[str, Any]:
     try:
         from pypdf import PdfReader
     except ImportError:
-        fail("缺少 pypdf，请先运行“scripts/install.bat”")
+        fail("缺少 pypdf，请先运行“npm run setup”")
     reader = PdfReader(str(path))
     pages = []
     for index, page in enumerate(reader.pages):
@@ -39,7 +39,7 @@ def docx(path: Path) -> dict[str, Any]:
     try:
         from docx import Document
     except ImportError:
-        fail("缺少 python-docx，请先运行“scripts/install.bat”")
+        fail("缺少 python-docx，请先运行“npm run setup”")
     document = Document(str(path))
     chunks: list[str] = []
     for paragraph in document.paragraphs:
@@ -59,7 +59,7 @@ def audio(path: Path) -> dict[str, Any]:
     try:
         from faster_whisper import WhisperModel
     except ImportError:
-        fail("缺少 faster-whisper，请先运行“scripts/install.bat”")
+        fail("缺少 faster-whisper，请先运行“npm run setup”")
     model_name = os.environ.get("WENSHAN_WHISPER_MODEL", "small")
     device = os.environ.get("WENSHAN_WHISPER_DEVICE", "cpu")
     compute_type = os.environ.get("WENSHAN_WHISPER_COMPUTE", "int8" if device == "cpu" else "float16")
@@ -144,7 +144,7 @@ def gis_zip(path: Path) -> dict[str, Any]:
     try:
         import fiona
     except ImportError:
-        fail("缺少 Fiona，请先运行“scripts/install.bat”")
+        fail("缺少 Fiona，请先运行“npm run setup”")
     temp = Path(tempfile.mkdtemp(prefix="wenshan-gis-"))
     try:
         safe_extract(path, temp)

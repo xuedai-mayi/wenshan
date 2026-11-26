@@ -1,0 +1,2 @@
+# 录音转写：依赖 onnxruntime/ctranslate2，轮子只覆盖部分 Python 版本。
+faster-whisper>=1.1,<2

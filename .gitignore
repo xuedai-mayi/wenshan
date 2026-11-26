@@ -7,6 +7,13 @@
 /.vscode/
 /.idea/
 
+# Runtime state: sessions, credentials and profile layers of the bundled runtime
+/.wenshan-home/
+
+# Python virtual environment for document / audio / GIS extraction
+/.venv/
+.venv/
+
 # Dependencies and generated builds
 **/node_modules/
 **/dist/

@@ -36,37 +36,76 @@ agents/             两个 agent 模式的配置
 
 ## 运行环境
 
-当前启动脚本面向 Windows 10/11，需要：
+- Node.js 22.19 及以上（推荐 24）
+- pnpm（只在安装阶段用，`npm install -g pnpm`）
+- Python 3.11（可选，用于 PDF / Word / 录音 / GIS 提取与数据重建；纯文本问答与图谱页面不需要）
 
-- Node.js 24，或 Node.js 22.19 及以上版本
-- pnpm
-- Python 3.11
+Windows、macOS、Linux 走同一条路径：只有一个入口 `wenshan`（`bin/wenshan.mjs`，通过 `package.json` 的 `bin` 暴露）。没有平台专用脚本，也不需要双击批处理——Windows 上同样在 PowerShell / cmd 里敲 `npm start` 或 `wenshan`。
 
-首次安装前先确认命令行可以找到 `node`、`pnpm` 和 `py -3.11`。安装 pnpm 可执行：
+几个由启动器自动处理、通常不用管的事：
 
-```powershell
-npm install -g pnpm
-```
+| 机制 | 行为 |
+| --- | --- |
+| Python 探测 | `python3.11` → `py -3.11` → `python3` → `python`，可用 `WENSHAN_PYTHON=python3.12` 钉住 |
+| Python 依赖 | 装在项目内 `.venv`，不碰系统环境（macOS 的 PEP 668 会挡住全局 pip） |
+| 依赖分组 | `requirements-core`（必需）+ `audio` / `gis` / `tools`（缺轮子只降级对应格式） |
+| 运行状态 | 写在项目内 `.wenshan-home`，不读也不写用户的 `~/.dsh`（可用 `WENSHAN_HOME` 改） |
+| 端口 | 默认 `3080`，被其它服务占用时自动顺延并打印实际地址 |
 
 ## 快速开始
 
-```powershell
+```bash
 git clone <你的仓库地址>
 cd <仓库目录>
-.\scripts\install.bat
-.\scripts\start.bat
+npm start         # 首次运行会先问「现在安装？」，回车即可；也可先跑 npm run setup
 ```
 
-安装脚本会构建仓库内置的运行时，同时安装知识图谱、文档提取、音频转写和 GIS 处理依赖。完成后打开：
+想把它当成一个常驻命令（和 `claude`、`dsh` 一样从任何目录调用）：
+
+```bash
+npm link          # 把 bin 链接进全局 prefix
+cd ~/任意目录
+wenshan           # 起 web 服务，并在就绪后自动打开浏览器
+```
+
+敲 `wenshan` 不带子命令就等于 `wenshan start`：打印入口地址 → 等服务真正监听 → 用系统默认浏览器打开 http://127.0.0.1:3080/。CI、SSH 会话、无图形会话的 Linux 不会弹窗（只打印地址），也可以用 `--no-open` 或 `WENSHAN_OPEN=0` 关掉。
+
+启动后终端会打印可用地址（默认 `3080`，被占用时自动顺延到下一个空闲端口）：
 
 - 主界面：`http://127.0.0.1:3080/`
 - 知识图谱：`http://127.0.0.1:3080/wenshan/knowledge-graph`
-- 照片地图：`http://127.0.0.1:3080/wenshan/photo-map`（照片缩略图由 `scripts/update-data.bat` 生成）
+- 照片地图：`http://127.0.0.1:3080/wenshan/photo-map`（照片缩略图由 `npm run data` 生成）
 - 知识星系：`http://127.0.0.1:3080/wenshan/knowledge-galaxy`
 
-也可以直接用 npm 脚本：`npm start`、`npm run data`、`npm run terrain`、`npm run eval`、`npm test`、`npm run preflight`。
+常用命令：
 
-照片地图的地形晕渲底图由 `py -3.11 scripts/build_terrain.py` 生成（从 AWS 开放高程瓦片下载 DEM，一次生成后离线可用；缺失时页面自动退回纯矢量底图）。
+| 命令 | 作用 |
+| --- | --- |
+| `wenshan` / `wenshan start` | 启动 web 服务并在就绪后打开浏览器；缺依赖时引导安装 |
+| `npm start` | 同上（仓库内的等价写法，首次运行会先询问是否安装） |
+| `npm run setup` | 安装 / 修复依赖（幂等，`--force` 重跑） |
+| `npm run doctor` | 环境体检：Node、pnpm、Python、运行时、页面依赖、数据、端口、挂载层 |
+| `npm run data` | 从原始资料重建 `data/*.json` |
+| `npm run terrain` | 生成地形晕渲底图 |
+| `npm run eval` | 152 题检索消融评测 |
+| `npm test` | 测试（运行时未构建时自动跳过集成测试） |
+| `npm run preflight` | 发布前自检：体检 + 测试 + 挂载层校验 |
+
+`npm run <命令>` 与 `wenshan <命令>` 完全等价（npm script 只是 `node bin/wenshan.mjs` 的别名），全局链接后不再需要 `npm run` 前缀。
+
+启动参数透传给运行时自己的参数解析：
+
+```bash
+npm start -- --port 3081                      # 换端口
+npm start -- --host 127.0.0.1 --port 0        # 让系统分配端口
+npm start -- --dry-run                        # 只打印渲染后的挂载层与启动命令
+wenshan start --port 3081                     # 换端口（全局命令下直接传，无需 --）
+wenshan --no-open                             # 只起服务，不打开浏览器
+```
+
+依赖装了哪几组、缺哪几组，`npm run doctor` 会逐项列出；缺录音 / GIS 时该格式的上传只会降级，不影响文本与文档。
+
+照片地图的地形晕渲底图由 `npm run terrain` 生成（从 AWS 开放高程瓦片下载 DEM，一次生成后离线可用；缺失时页面自动退回纯矢量底图）。
 
 首次进入主界面后，在 `设置 > 模型` 中配置模型和 API Key。凭据写入本机配置，不进入本仓库。
 
@@ -116,17 +155,19 @@ data/knowledge/
 └─ structured/
 ```
 
-`data/knowledge/`、`data/photos/` 和本机凭据已经加入 `.gitignore`。公开仓库前仍应检查原始实习记录、照片和地理数据的授权与隐私边界。
+`data/knowledge/`、`data/photos/`、`.venv/`、`.wenshan-home/` 和本机凭据都已经加入 `.gitignore`。运行状态（会话、凭据、profile 层）落在 `.wenshan-home/`，删掉即重置。公开仓库前仍应检查原始实习记录、照片和地理数据的授权与隐私边界。
 
 如需从原始 GDB、Obsidian 知识库和每日整理目录重建基础数据，先修改 `config/lushan.json` 中的三个来源路径，再运行：
 
-```powershell
-.\scripts\update-data.bat
+```bash
+npm run data                                   # 默认 config/lushan.json
+npm run data -- config/other-site.json         # 换一个实习区
 ```
 
 ## 项目结构
 
 ```text
+bin/wenshan.mjs          统一命令行入口（start / setup / doctor / data / terrain / eval / test / preflight）
 config/                  站点配置与产品挂载配置
   lushan.json            庐山站点配置（数据源路径、图层映射、文案）
   wenshan.yml            产品挂载层
@@ -138,6 +179,7 @@ packages/
   agent/                 工具注册与两种模式的系统提示词
   intake/                资料收录、HTTP 接口与图谱/地图/星系页面
 scripts/                 安装、启动、数据构建、评测与发布检查脚本
+  lib/                   命令行实现：环境探测、挂载层渲染、安装、启动
 tests/                   存储、冒烟、产品链路与浏览器验收测试
 docs/                    架构文档、评测报告与图表、界面截图
 data/                    可公开的基础检索数据
@@ -146,11 +188,11 @@ vendor/runtime/          随仓库分发的 agent 运行时源码
 
 ## 开发与测试
 
-```powershell
-npm test                  # 知识事件日志的写入与重放（零外部依赖）
+```bash
+npm test                  # 知识事件日志的写入与重放 + 命令行层（零外部依赖）
 npm run test:integration  # 冒烟 + 产品链路（需要先构建运行时）
 npm run eval              # 152 题检索消融评测，写 docs/evaluation/
-npm run preflight         # 构建 + 配置校验 + 冒烟 + 产品链路
+npm run preflight         # 跨平台发布自检：体检 + 测试 + 挂载层校验
 ```
 
 评测报告见 [docs/evaluation/eval_report.md](docs/evaluation/eval_report.md)。

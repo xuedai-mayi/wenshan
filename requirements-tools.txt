@@ -1,0 +1,6 @@
+# 数据管线：从原始 GDB / Obsidian 库重建 data/*.json、生成地形晕渲底图时才需要。
+# 依赖 GDAL（fiona）与编译轮子，建议配 Python 3.11 使用。
+fiona>=1.10,<2
+shapely>=2.0,<3
+numpy>=1.26,<3
+pillow>=10,<12

@@ -1,0 +1,2 @@
+# GIS 矢量数据：fiona 需要 GDAL 轮子，版本覆盖比纯 Python 包窄。
+fiona>=1.10,<2
