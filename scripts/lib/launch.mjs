@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { createOverlay } from './overlay.mjs'
-import { findFreePort, portFree, waitForListening } from './detect.mjs'
+import { RUNTIME_CLI, findFreePort, portFree, waitForListening } from './detect.mjs'
 import { banner, bullet, c, fail, warn } from './ui.mjs'
 
 export const DEFAULT_PORT = 3080
@@ -133,7 +133,7 @@ export async function launch({
   root, python, port, host, passthrough = [], dryRun = false, overlayKeep = false, open = true,
 }) {
   const home = resolveHome(root)
-  const cliPath = path.join(root, 'runtime', 'apps', 'cli', 'lib', 'bin.js')
+  const cliPath = path.join(root, RUNTIME_CLI)
   const overlay = createOverlay({ root, python, keep: overlayKeep })
   const args = [cliPath, 'web', '--patch', overlay.path]
   if (port != null) args.push('--port', String(port))

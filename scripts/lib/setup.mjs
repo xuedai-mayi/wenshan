@@ -3,10 +3,9 @@
 // 全部步骤幂等：已经完成的部分直接跳过，`--force` 才会重跑。任何一步都不会写进
 // 版本库（node_modules / lib / __pycache__ 均已 ignore）。
 
-import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { createOverlay } from './overlay.mjs'
+import { validateOverlay } from './overlay.mjs'
 import {
   detectNode, detectPnpm, detectPython, hasVenv, intakeInstalled, missingModules,
   vendorBuilt, venvPaths,
@@ -143,27 +142,12 @@ export function buildPlan({ root, python, force = false }) {
     why: () => (vendorBuilt(root) ? false : '运行时未构建，跳过'),
     async run() {
       // 重新探测：上一步刚创建/补齐了 .venv，运行期应当用 venv 里的解释器。
-      const overlay = createOverlay({ root, python: detectPython({ root }) })
-      try {
-        const cli = path.join(root, 'runtime', 'apps', 'cli', 'lib', 'bin.js')
-        const result = await new Promise(resolve => {
-          const child = spawn(process.execPath, [cli, 'web', '--patch', overlay.path, '--dump-config'], {
-            cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'],
-          })
-          let output = ''
-          child.stdout.on('data', chunk => { output += chunk })
-          child.stderr.on('data', chunk => { output += chunk })
-          child.once('error', error => resolve({ code: 1, output: error.message }))
-          child.once('exit', code => resolve({ code: code ?? 1, output }))
-        })
-        if (result.code !== 0) {
-          throw new Error(`挂载层校验失败：\n${result.output.split('\n').slice(-25).join('\n')}`)
-        }
-        const lines = result.output.split('\n').filter(Boolean).length
-        detail(`挂载层解析成功（${lines} 行配置输出）`)
-      } finally {
-        overlay.cleanup()
+      const result = await validateOverlay({ root, python: detectPython({ root }) })
+      if (result.code !== 0) {
+        throw new Error(`挂载层校验失败：\n${result.output.split('\n').slice(-25).join('\n')}`)
       }
+      const lines = result.output.split('\n').filter(Boolean).length
+      detail(`挂载层解析成功（${lines} 行配置输出）`)
     },
   })
 
@@ -234,5 +218,3 @@ export function preflightNode() {
   }
   return node
 }
-
-export { detectPython }

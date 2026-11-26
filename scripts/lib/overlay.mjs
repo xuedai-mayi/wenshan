@@ -11,6 +11,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { spawn } from 'node:child_process'
+import { RUNTIME_CLI } from './detect.mjs'
 
 /** 模板里必须被替换的占位符，缺一个就说明配置和启动器已经不同步。 */
 export const PLACEHOLDERS = {
@@ -74,4 +76,21 @@ export function createOverlay({ root, python, keep = false }) {
     fs.rmSync(directory, { recursive: true, force: true })
   }
   return { path: overlayPath, cleanup, content }
+}
+
+export async function validateOverlay({ root, python }) {
+  const overlay = createOverlay({ root, python })
+  try {
+    return await new Promise(resolve => {
+      const args = [path.join(root, RUNTIME_CLI), 'web', '--patch', overlay.path, '--dump-config']
+      const child = spawn(process.execPath, args, { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] })
+      let output = ''
+      child.stdout.setEncoding('utf8').on('data', chunk => { output += chunk })
+      child.stderr.setEncoding('utf8').on('data', chunk => { output += chunk })
+      child.once('error', error => resolve({ code: 1, output: error.message }))
+      child.once('close', code => resolve({ code: code ?? 1, output }))
+    })
+  } finally {
+    overlay.cleanup()
+  }
 }

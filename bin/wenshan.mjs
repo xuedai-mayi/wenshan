@@ -7,7 +7,7 @@
 //   npm run data        从原始资料重建 data/*.json
 //   npm run terrain     生成地形晕渲底图
 //   npm run eval        152 题检索消融评测
-//   npm run test        测试（运行时未构建时自动跳过集成测试）
+//   npm test            单元测试
 //   npm run preflight   发布前自检
 //   npm run backup      备份知识库与运行状态
 //   npm run restore     从备份恢复
@@ -73,9 +73,9 @@ ${c.bold('wenshan')} — 问山：地理野外实习自成长知识图谱智能�
   wenshan restore <备份文件> [--dry-run] 从备份恢复（会先给现状留副本）
   wenshan health [--url URL] [--json]   探活运行中的服务
 
-在仓库内也可以写成 npm run <命令>（start / setup / doctor / data / terrain / eval / test /
-preflight / backup / restore / health），两者等价；npm 会自己吃掉一层参数，
-所以脚本形式要写成 npm start -- --port 3081。
+仓库内可用 npm run <命令>，例如 npm start -- --port 3081。
+测试入口：npm test 跑单元测试，npm run test:integration 跑集成测试，
+wenshan test 在运行时已构建时运行两组。
 
 选项
   -p, --port <port>       监听端口，默认 ${3080}；被占用时自动顺延

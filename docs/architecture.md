@@ -27,13 +27,13 @@
 
 ## 安装与启动
 
-`bin/wenshan.mjs` 是唯一入口，通过 `package.json` 的 `bin` 暴露成 `wenshan` 命令；`npm run <cmd>` 只是它的别名。仓库里没有平台专用脚本。
+`bin/wenshan.mjs` 提供 `wenshan` 命令。常用操作也可通过 `package.json` 中的 npm 脚本运行。
 
 | 层 | 职责 |
 | --- | --- |
 | `bin/wenshan.mjs` | 命令解析、`--help`、退出码 |
 | `scripts/lib/detect.mjs` | Node / pnpm / Python 探测、端口可用性、已构建状态判定 |
-| `scripts/lib/overlay.mjs` | 挂载层占位符渲染 |
+| `scripts/lib/overlay.mjs` | 渲染挂载层，供安装和体检共用配置校验 |
 | `scripts/lib/setup.mjs` | 幂等安装计划：构建运行时 → 页面依赖 → 提取依赖 → 挂载层校验 |
 | `scripts/lib/launch.mjs` | 端口顺延、拉起运行时的 web 面、就绪后打开浏览器、信号与临时文件清理 |
 
@@ -124,8 +124,10 @@
 
 - `tests/store.test.mjs`：知识事件日志的写入与重放，零外部依赖。
 - `tests/cli.test.mjs`：版本/解释器探测、挂载层渲染、端口顺延、安装状态判定，零外部依赖。
+- `tests/ops.test.mjs`：备份、恢复和健康探测。
+- `tests/build.test.mjs`：模拟模型抽取、合并与保存草稿。
 - `tests/smoke.test.mjs`：真实运行时上下文里注册工具并逐个执行。
 - `tests/product.test.mjs`：来源→草稿→确认门禁→发布热更新→重放→只读隔离→缺口闭环→照片地图数据。
 - `scripts/eval_qa.mjs`：152 题检索消融评测，产出 `docs/evaluation/`。
 
-`npm test` 只跑零依赖的两个文件；`npm run test:integration` 与 `npm run eval` 依赖已构建的运行时（先跑 `npm run setup`）。`npm run preflight` 把体检、测试与挂载层校验串成一条跨平台命令。
+`npm test` 运行存储、CLI、运维和构建单元测试。`npm run test:integration` 与 `npm run eval` 需要先安装运行时。`wenshan test` 运行单元测试，并在运行时已构建时运行集成测试。`npm run preflight` 先运行体检（含挂载层校验），再运行两组测试。

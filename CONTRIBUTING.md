@@ -9,7 +9,7 @@ git clone https://github.com/xuedai-mayi/wenshan.git && cd wenshan
 npm install -g pnpm
 npm run setup          # 构建内置运行时 + 页面依赖 + Python 提取链
 npm run doctor         # 缺什么会直接说
-npm test               # 零依赖：存储、CLI、运维层
+npm test               # 单元测试：存储、CLI、运维、知识构建
 npm run test:integration
 ```
 

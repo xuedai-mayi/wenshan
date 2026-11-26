@@ -11,6 +11,7 @@ export const NODE_MIN = [22, 19]
 export const PYTHON_MIN = [3, 9]
 /** 文档、音频与 GIS 提取的轮子只对 3.11 稳定供应，其余版本降级为警告。 */
 export const PYTHON_PREFERRED = [3, 11]
+export const RUNTIME_CLI = 'runtime/apps/cli/lib/bin.js'
 
 /** `v24.22.0` / `3.11.9` / `24` → [24,22,0] / [3,11,9] / [24,0,0]；解析失败返回 null。 */
 export function parseTriple(value) {
@@ -235,7 +236,7 @@ export async function findFreePort(start, { host = '127.0.0.1', limit = 20, prob
 /** 内置运行时是否已构建：CLI 入口、运行时依赖树、业务包硬依赖的 schemastery 都在。 */
 export function vendorBuilt(root) {
   const relative = [
-    'runtime/apps/cli/lib/bin.js',
+    RUNTIME_CLI,
     'runtime/vendor/schemastery/lib/index.mjs',
     'runtime/node_modules',
   ]

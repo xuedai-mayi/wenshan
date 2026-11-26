@@ -2,7 +2,7 @@
   "name": "wenshan",
   "version": "1.0.0",
   "private": true,
-  "description": "问山：面向地理野外实习的自成长知识图谱智能体，把实习资料变成可审核、可追溯、可导览的知识库",
+  "description": "问山：面向地理野外实习的开源知识库，支持资料导入、知识图谱、路线回放和带来源的现场问答。",
   "license": "MIT",
   "type": "module",
   "engines": {

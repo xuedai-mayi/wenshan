@@ -3,18 +3,17 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline/promises'
 import {
   DEFAULT_HOST, DEFAULT_PORT, launch, resolveHome, resolvePort,
 } from './launch.mjs'
 import {
-  PYTHON_MIN, PYTHON_PREFERRED, dataFilesReady, detectNode, detectPnpm, detectPython,
+  PYTHON_PREFERRED, dataFilesReady, detectNode, detectPnpm, detectPython,
   formatTriple, hasVenv, intakeInstalled, missingModules, portFree, pythonDependencies,
-  semverGte, vendorBuilt,
+  vendorBuilt,
 } from './detect.mjs'
 import { preflightNode, pythonEnv, runInstall, spawnInherit } from './setup.mjs'
-import { createOverlay } from './overlay.mjs'
+import { validateOverlay } from './overlay.mjs'
 import { banner, bullet, c, detail, duration, fail, ok, table, warn } from './ui.mjs'
 import { fetchHealth, restoreBackup, writeBackup } from './ops.mjs'
 
@@ -83,7 +82,6 @@ async function ensureInstalled({ root, python, options }) {
 
 export async function cmdStart({ root, options, passthrough }) {
   preflightNode()
-  const node = detectNode()
   const python = detectPython({ root })
   if (python.found && !python.preferred) {
     warn(`Python ${python.version}（推荐 3.11）：音频与 GIS 提取的轮子可能不可用`)
@@ -107,8 +105,7 @@ export async function cmdStart({ root, options, passthrough }) {
 }
 
 export async function cmdInstall({ root, options }) {
-  preflightNode()
-  const node = detectNode()
+  const node = preflightNode()
   const pnpm = detectPnpm()
   const python = detectPython({ root })
 
@@ -156,11 +153,10 @@ export async function cmdDoctor({ root, options }) {
   let pythonStatus = 'fail'
   let pythonValue = `未找到（尝试过 ${python.attempts.map(a => a.cmd).join(' / ')}）`
   if (python.found) {
-    const minOk = semverGte(python.triple, PYTHON_MIN)
-    pythonStatus = minOk ? (python.preferred ? 'ok' : 'warn') : 'fail'
+    pythonStatus = python.usable ? (python.preferred ? 'ok' : 'warn') : 'fail'
     pythonValue = `${python.version}（${[python.cmd, ...python.args].join(' ')}）`
     if (python.source === 'venv') pythonValue += ' · 项目 .venv'
-    if (!python.preferred && minOk) pythonValue += `，推荐 ${formatTriple(PYTHON_PREFERRED)}`
+    if (!python.preferred && python.usable) pythonValue += `，推荐 ${formatTriple(PYTHON_PREFERRED)}`
   }
   add('Python', pythonStatus, pythonValue)
 
@@ -209,27 +205,12 @@ export async function cmdDoctor({ root, options }) {
   process.stdout.write('\n')
 
   if (runtimeOk) {
-    const overlay = createOverlay({ root, python })
-    try {
-      const cli = path.join(root, 'runtime', 'apps', 'cli', 'lib', 'bin.js')
-      const result = await new Promise(resolve => {
-        const child = spawn(process.execPath, [cli, 'web', '--patch', overlay.path, '--dump-config'], {
-          cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        let output = ''
-        child.stdout.on('data', chunk => { output += chunk })
-        child.stderr.on('data', chunk => { output += chunk })
-        child.once('error', error => resolve({ code: 1, output: error.message }))
-        child.once('exit', code => resolve({ code: code ?? 1, output }))
-      })
-      if (result.code === 0) ok('挂载层校验通过')
-      else {
-        fail('挂载层校验失败')
-        detail(result.output.split('\n').slice(-15).join('\n'))
-        blockers.push('挂载层')
-      }
-    } finally {
-      overlay.cleanup()
+    const result = await validateOverlay({ root, python })
+    if (result.code === 0) ok('挂载层校验通过')
+    else {
+      fail('挂载层校验失败')
+      detail(result.output.split('\n').slice(-15).join('\n'))
+      blockers.push('挂载层')
     }
   }
 
@@ -280,24 +261,16 @@ export async function cmdEval({ root, passthrough }) {
 
 /** 测试：零依赖部分永远跑；需要运行时的部分在未构建时明确跳过而不是假装通过。 */
 export async function cmdTest({ root }) {
-  const targets = ['tests/store.test.mjs', 'tests/cli.test.mjs', 'tests/ops.test.mjs']
-  const built = vendorBuilt(root)
-  if (built) targets.push('tests/smoke.test.mjs', 'tests/product.test.mjs')
+  const suites = ['test']
+  if (vendorBuilt(root)) suites.push('test:integration')
   else warn('内置运行时未构建，跳过 smoke / product 集成测试（npm run setup 后自动纳入）')
 
-  let failed = 0
-  for (const target of targets) {
-    process.stdout.write(`\n${c.bold(target)}\n`)
-    const result = await spawnInherit(process.execPath, [path.join(root, target)], { cwd: root })
-    if (result.code !== 0) failed++
+  let status = 0
+  for (const suite of suites) {
+    const { code } = await spawnInherit(process.execPath, ['--run', suite], { cwd: root })
+    if (code !== 0) status = 1
   }
-  process.stdout.write('\n')
-  if (failed) {
-    fail(`${failed} 个测试文件失败`)
-    return 1
-  }
-  ok(`${targets.length} 个测试文件通过`)
-  return 0
+  return status
 }
 
 function formatBytes(bytes) {
@@ -415,9 +388,9 @@ export async function cmdHealth({ root, options, passthrough }) {
   return 1
 }
 
-/** 发布前自检：体检 + 测试 + 挂载层校验，一条命令替代原来的 PowerShell 脚本。 */
+/** 发布前自检：体检（含挂载层校验）与测试。 */
 export async function cmdPreflight({ root, options }) {
-  banner('问山 · 发布前自检', ['体检 → 测试 → 挂载层 → 汇总'])
+  banner('问山 · 发布前自检', ['体检（含挂载层校验） → 测试'])
   const doctorCode = await cmdDoctor({ root, options })
   if (doctorCode !== 0) {
     fail('体检未通过，先修环境再谈发布')

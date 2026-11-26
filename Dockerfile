@@ -5,7 +5,7 @@
 #         -v wenshan-data:/app/data/knowledge \
 #         -v wenshan-home:/app/.wenshan-home wenshan:1.0.0
 #
-# 镜像里预装内置运行时与 Python 提取链（文档 + GIS；录音转写体积大，按需自行安装），
+# 镜像里预装内置运行时与 Python 提取依赖，
 # 因此首次启动不需要联网，也不会在容器里再跑一次安装。
 
 FROM node:24-bookworm-slim
@@ -13,8 +13,7 @@ FROM node:24-bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    WENSHAN_OPEN=0 \
-    NODE_ENV=production
+    WENSHAN_OPEN=0
 
 # python3（bookworm 自带 3.11）提供 PDF/DOCX 与 GIS 提取；tini 负责信号回收。
 RUN apt-get update \
@@ -37,16 +36,18 @@ COPY agents ./agents
 COPY packages ./packages
 COPY runtime ./runtime
 COPY data ./data
+COPY requirements ./requirements
 COPY deploy/docker-entrypoint.sh /usr/local/bin/wenshan-entrypoint
 COPY README.md LICENSE NOTICE.md ./
 
-# 安装：构建内置运行时 + 页面依赖 + 项目内 .venv（音频组默认跳过，见 requirements 说明）。
+# 安装并构建运行时，再切换为生产环境。
 RUN chmod 0755 /usr/local/bin/wenshan-entrypoint \
     && npm run setup -- --yes \
     && rm -rf /tmp/* \
     && mkdir -p /app/data/knowledge /app/.wenshan-home \
     && chown -R node:node /app/data /app/.wenshan-home /app/packages
 
+ENV NODE_ENV=production
 USER node
 
 EXPOSE 3080
