@@ -13,7 +13,7 @@
 
 ![问山主界面](docs/images/home.png)
 
-> 产品落地页：[site/index.html](site/index.html) · 用户手册：[docs/product/user-guide.md](docs/product/user-guide.md) · 部署指南：[docs/deploy.md](docs/deploy.md)
+> 产品落地页：[docs/site/index.html](docs/site/index.html) · 用户手册：[docs/product/user-guide.md](docs/product/user-guide.md) · 部署指南：[docs/deploy.md](docs/deploy.md)
 
 > 仓库已从 `dsh-wenshan` 更名为 `wenshan`。旧 clone 更新一下远端即可，数据目录与命令都不变：
 > `git remote set-url origin https://github.com/xuedai-mayi/wenshan.git`。
@@ -108,7 +108,7 @@ Windows、macOS、Linux 走同一条路径：只有一个入口 `wenshan`（`bin
 | --- | --- |
 | Python 探测 | `python3.11` → `py -3.11` → `python3` → `python`，可用 `WENSHAN_PYTHON=python3.12` 钉住 |
 | Python 依赖 | 装在项目内 `.venv`，不碰系统环境（macOS 的 PEP 668 会挡住全局 pip） |
-| 依赖分组 | `requirements-core`（必需）+ `audio` / `gis` / `tools`（缺轮子只降级对应格式） |
+| 依赖分组 | `requirements/` 下的 `core`（必需）+ `audio` / `gis` / `tools`（缺轮子只降级对应格式） |
 | 运行状态 | 写在项目内 `.wenshan-home`，不读写系统里其它服务的状态目录（可用 `WENSHAN_HOME` 改） |
 | 界面语言 | 首次启动写入中文偏好；「设置 > 通用 > 语言」可切英文，`WENSHAN_LOCALE=en` 改默认值 |
 | 端口 | 默认 `3080`，被其它服务占用时自动顺延并打印实际地址 |
@@ -233,24 +233,25 @@ npm run data -- config/other-site.json         # 换一个实习区
 ```text
 bin/wenshan.mjs          统一命令行入口（start / setup / doctor / data / terrain / eval / test /
                          preflight / backup / restore / health）
-config/                  站点配置与产品挂载配置
-  lushan.json            庐山站点配置（数据源路径、图层映射、文案）
-  wenshan.yml            产品挂载层
 agents/                  两种 agent 模式
   field-qa/              野外助教（只读问答）
   knowledge-build/       知识演化（写入审核）
+config/                  站点配置与产品挂载配置
+  lushan.json            庐山站点配置（数据源路径、图层映射、文案）
+  wenshan.yml            产品挂载层
 packages/
   georag/                GeoRAG 检索、空间查询、知识事件存储
   agent/                 工具注册与两种模式的系统提示词
   intake/                资料收录、HTTP 接口与图谱/地图/星系页面
 scripts/                 安装、启动、数据构建、评测、运维与发布检查脚本
   lib/ops.mjs            备份 / 恢复 / 健康探测
-deploy/                  systemd、Caddy、容器入口与备份 timer
-site/                    产品落地页
-tests/                   存储、冒烟、产品链路、运维层与浏览器验收测试
-docs/                    架构、产品文档、部署指南、评测报告与截图
+requirements/            Python 依赖分组（core / audio / gis / tools）
 data/                    可公开的基础检索数据
-runtime/                 随仓库分发的 agent 运行时源码
+deploy/                  systemd、Caddy、容器入口与备份 timer
+docs/                    架构、产品文档、部署指南、评测报告与截图
+  site/                  产品落地页
+tests/                   存储、冒烟、产品链路、运维层与浏览器验收测试
+runtime/                 随仓库分发的运行时源码（第三方快照）
 ```
 
 ## 开发与测试

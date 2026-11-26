@@ -73,23 +73,15 @@ ctx.llm.stream({ provider: target.provider, model: target.model, system, message
 
 联调时用 `DEEPSEEK_API_KEY=… npm start` 临时注入也行，但**正式用请在「设置 > 模型」里存**：那条路写进本机凭据存储（`.wenshan-home/.credentials.yaml`，600 权限、已被 `.gitignore` 挡住），进程重启不用再带环境变量，也不会留在 shell 历史里。
 
-## 借用关系：cognee 是可选项，不再是必需
+## 与外部抽取服务的关系
 
-上一版把抽取交给 cognee（`cognify(graph_model=WenshanGraph)`），那条路要求模型凭据以 `LLM_API_KEY`/`LLM_ENDPOINT` 形式交给 Python 进程。**现在不需要了**：
+早期版本把抽取交给外部知识抽取服务，凭据要另外传给 Python 进程。现在抽取由内置的 `packages/georag/src/build.js` 完成，直接用宿主「设置 > 模型」里的凭据，不需要任何外部服务。
 
-| 能力 | 现在由谁做 | cognee 还需要吗 |
-| --- | --- | --- |
-| 分块 / 抽取 / 合并 / 增量 | 本仓库 `build.js`（自带，用宿主模型） | 不需要 |
-| 图存储与写入事件 | `data/*.json` + `events.jsonl` | 不需要，也不该替换 |
-| 语义召回（第四路） | 未实现 | **可选**：这时才要 cognee 的向量库，见 [cognee-integration.md](cognee-integration.md) |
-
-`scripts/wenshan_kg_model.py` 与 `scripts/cognee_to_draft.py` 保留给"走 cognee 做抽取或语义索引"的路线，格式与 `build.js` 共用：
-
-```json
-{"sourceIds": ["src-…"], "label": "…",
- "items": [{"kind": "讲解点", "title": "…", "content": "…", "coordinate": [115.9, 29.5]}],
- "edges": [{"from": "…", "to": "…", "type": "解释"}]}
-```
+| 能力 | 现在由谁做 |
+| --- | --- |
+| 分块 / 抽取 / 合并 / 增量 | `build.js`（自带，用宿主模型） |
+| 图存储与写入事件 | `data/*.json` + `events.jsonl` |
+| 语义召回（第四路） | 未实现；将来若做，接一个独立的向量检索即可 |
 
 ## 提示词的三条硬约束
 
@@ -148,4 +140,4 @@ ctx.llm.stream({ provider: target.provider, model: target.model, system, message
 
 1. **审核界面**：`GET /wenshan/api/evolution/build` 的 `sources[*].state` 已经能驱动进度条；草稿列表接口还没有，`listDrafts` 只在 agent 工具里用。加一个 `GET /wenshan/api/evolution/drafts` 就能让"待审核 N 条"点得进去。
 2. **补充语义**：见坑 1，`node.supplemented` 事件约 40 行 + 一个测试。
-3. **语义召回**：要"换个说法也检索得到"，再接 cognee 的向量库做第四路（[cognee-integration.md](cognee-integration.md) 的 B 档）。
+3. **语义召回**：要「换个说法也检索得到」，接一个外部向量检索做第四路。

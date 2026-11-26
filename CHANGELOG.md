@@ -45,6 +45,8 @@
   新增 [docs/product/ux-copy.md](docs/product/ux-copy.md) 作为后续改文案的依据。
 - 界面语言默认中文：首次启动写入 `locale.preference: zh`（英文浏览器也显示中文），
   「设置 > 通用 > 语言」可切换，`WENSHAN_LOCALE=en` 可改部署默认值。
+- 目录收敛：`site/` 移入 `docs/site/`，`requirements-*.txt` 移入 `requirements/`；
+  撤下内部实验文档与脚本，PRD 去掉报价信息（历史提交仍保留，见发布说明）。
 - 仓库更名为 `wenshan`（原 `dsh-wenshan`）；内置运行时目录从 `vendor/runtime/` 移到 `runtime/`。
 - 产品层与上游运行时解耦：业务包不再声明上游包级依赖，启动器只为本进程设置运行时状态变量、
   不继承宿主值；产品代码与文档不再出现上游名称。三个业务包版本同步到 1.0.0。

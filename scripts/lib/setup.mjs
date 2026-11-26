@@ -79,10 +79,10 @@ export function buildPlan({ root, python, force = false }) {
   // Python 依赖按组拆成独立步骤：文档提取必需，录音 / GIS / 数据管线缺轮子只降级对应格式，
   // 而且各组装好之后各自跳过——不会因为核心已就绪就永远不再尝试其它组。
   const pythonGroups = [
-    { id: 'python-core', file: 'requirements-core.txt', label: '文档提取', modules: ['pypdf', 'docx'], required: true },
-    { id: 'python-audio', file: 'requirements-audio.txt', label: '录音转写', modules: ['faster_whisper'], required: false },
-    { id: 'python-gis', file: 'requirements-gis.txt', label: 'GIS 矢量', modules: ['fiona'], required: false },
-    { id: 'python-tools', file: 'requirements-tools.txt', label: '数据重建', modules: ['fiona', 'shapely', 'numpy', 'PIL'], required: false },
+    { id: 'python-core', file: 'requirements/requirements-core.txt', label: '文档提取', modules: ['pypdf', 'docx'], required: true },
+    { id: 'python-audio', file: 'requirements/requirements-audio.txt', label: '录音转写', modules: ['faster_whisper'], required: false },
+    { id: 'python-gis', file: 'requirements/requirements-gis.txt', label: 'GIS 矢量', modules: ['fiona'], required: false },
+    { id: 'python-tools', file: 'requirements/requirements-tools.txt', label: '数据重建', modules: ['fiona', 'shapely', 'numpy', 'PIL'], required: false },
   ]
 
   const noPython = () => {
@@ -111,7 +111,7 @@ export function buildPlan({ root, python, force = false }) {
   for (const group of pythonGroups) {
     steps.push({
       id: group.id,
-      title: `${group.label}依赖（${group.file}）`,
+      title: `${group.label}依赖（${path.basename(group.file)}）`,
       optional: !group.required,
       why: () => {
         const blocked = noPython()

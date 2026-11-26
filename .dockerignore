@@ -10,7 +10,7 @@ data/knowledge
 **/__pycache__
 **/*.py[cod]
 docs/images
-site
+docs/site
 tests
 deploy/*.md
 背景
