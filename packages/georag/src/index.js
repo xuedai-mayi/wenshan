@@ -6,7 +6,7 @@
 // 因此 scripts/eval_qa.mjs 评测可以直接 import 本包的 engine 做回归。
 import fs from 'node:fs'
 import path from 'node:path'
-import z from '../../vendor/runtime/vendor/schemastery/lib/index.mjs'
+import z from '../../../vendor/runtime/vendor/schemastery/lib/index.mjs'
 import { createEngine } from './engine.js'
 import { KnowledgeStore } from './knowledge-store.js'
 
