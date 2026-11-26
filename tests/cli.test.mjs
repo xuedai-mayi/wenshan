@@ -10,7 +10,7 @@ import {
 } from '../scripts/lib/detect.mjs'
 import { PLACEHOLDERS, overlayValues, renderOverlay } from '../scripts/lib/overlay.mjs'
 import {
-  browserCommand, buildUrls, canOpenBrowser, resolvePort,
+  browserCommand, buildUrls, canOpenBrowser, ensureLocalePreference, preferredLocale, resolvePort,
 } from '../scripts/lib/launch.mjs'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -193,6 +193,33 @@ try {
     fs.rmSync(fixture, { recursive: true, force: true })
   }
 
+  // —— 默认界面语言 ——
+  // 运行时的语言默认跟随浏览器，英文浏览器会得到英文界面；产品在首次启动时写中文偏好。
+  equal(preferredLocale({}), 'zh', '默认语言应为中文')
+  equal(preferredLocale({ WENSHAN_LOCALE: 'en' }), 'en', 'WENSHAN_LOCALE=en 应改默认语言')
+  equal(preferredLocale({ WENSHAN_LOCALE: 'zh-CN' }), 'zh', '不认识的语言值应回落到中文')
+
+  const homeFixture = fs.mkdtempSync(path.join(os.tmpdir(), 'wenshan-locale-'))
+  try {
+    const fresh = ensureLocalePreference(homeFixture)
+    assert(fresh.changed, '首次启动应写入语言偏好')
+    assert(/locale:\s*\n\s*preference: zh/.test(fs.readFileSync(fresh.file, 'utf8')), '写入的偏好应为 zh')
+
+    const again = ensureLocalePreference(homeFixture)
+    assert(!again.changed, '已有 locale 段时不应重复写入')
+
+    fs.writeFileSync(path.join(homeFixture, 'settings.yaml'), 'ui-onboarding:\n  welcomeNoticeVersion: 1\n')
+    const appended = ensureLocalePreference(homeFixture)
+    const text = fs.readFileSync(appended.file, 'utf8')
+    assert(appended.changed && text.includes('ui-onboarding:') && text.includes('preference: zh'), '应在保留其它设置的前提下追加语言偏好')
+
+    fs.writeFileSync(path.join(homeFixture, 'settings.yaml'), 'locale:\n  preference: en\n')
+    const kept = ensureLocalePreference(homeFixture)
+    assert(!kept.changed && fs.readFileSync(kept.file, 'utf8').includes('preference: en'), '教师自己选的语言不应被覆盖')
+  } finally {
+    fs.rmSync(homeFixture, { recursive: true, force: true })
+  }
+
   // —— 业务包对内置运行时的相对引用 ——
   // 这些 import 写错一级目录时不会在测试期暴露，只有真正启动那一刻才炸（曾经就是这样）。
   const vendorRefs = ['packages/agent/src/index.js', 'packages/georag/src/index.js', 'packages/agent/src/tools.js']
@@ -204,7 +231,7 @@ try {
     }
   }
 
-  console.log('命令行测试通过：环境探测、挂载层渲染、端口顺延、浏览器就绪判定、安装状态与运行时引用')
+  console.log('命令行测试通过：环境探测、挂载层渲染、端口顺延、浏览器就绪判定、安装状态、默认语言与运行时引用')
 } catch (error) {
   console.error(`命令行测试失败：${error.message}`)
   process.exit(1)

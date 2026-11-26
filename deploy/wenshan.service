@@ -24,6 +24,8 @@ Environment=NODE_ENV=production
 Environment=WENSHAN_OPEN=0
 Environment=WENSHAN_HOME=/var/lib/wenshan/home
 Environment=WENSHAN_PYTHON=python3.11
+# 默认界面中文；要英文界面取消注释：
+# Environment=WENSHAN_LOCALE=en
 # 用域名经反向代理访问时，取消下面两行注释并改成实际域名（多个域名用空格分隔）：
 # Environment=WENSHAN_DOMAIN=wenshan.example.com
 # ExecStart=/usr/bin/env node bin/wenshan.mjs start --no-open --host 127.0.0.1 --port 3080 -- --trusted-host ${WENSHAN_DOMAIN}

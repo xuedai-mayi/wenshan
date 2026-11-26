@@ -110,6 +110,7 @@ Windows、macOS、Linux 走同一条路径：只有一个入口 `wenshan`（`bin
 | Python 依赖 | 装在项目内 `.venv`，不碰系统环境（macOS 的 PEP 668 会挡住全局 pip） |
 | 依赖分组 | `requirements-core`（必需）+ `audio` / `gis` / `tools`（缺轮子只降级对应格式） |
 | 运行状态 | 写在项目内 `.wenshan-home`，不读写系统里其它服务的状态目录（可用 `WENSHAN_HOME` 改） |
+| 界面语言 | 首次启动写入中文偏好；「设置 > 通用 > 语言」可切英文，`WENSHAN_LOCALE=en` 改默认值 |
 | 端口 | 默认 `3080`，被其它服务占用时自动顺延并打印实际地址 |
 
 ## 快速开始

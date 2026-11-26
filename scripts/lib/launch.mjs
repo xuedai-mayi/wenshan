@@ -10,6 +10,8 @@ import { banner, bullet, c, fail, warn } from './ui.mjs'
 
 export const DEFAULT_PORT = 3080
 export const DEFAULT_HOST = '127.0.0.1'
+/** 产品默认界面语言：中文。可用 WENSHAN_LOCALE=en 改默认值。 */
+export const DEFAULT_LOCALE = 'zh'
 
 /**
  * 运行时状态目录（会话、凭据、profile、存储）。
@@ -24,6 +26,37 @@ export const DEFAULT_HOST = '127.0.0.1'
  */
 export function resolveHome(root, env = process.env) {
   return env.WENSHAN_HOME ?? path.join(root, '.wenshan-home')
+}
+
+/**
+ * 首次启动写给运行时的默认语言偏好。
+ *
+ * 运行时的界面语言默认跟随浏览器；浏览器是英文环境时，教师会看到英文界面。
+ * 问山面向中文教学场景，所以首次启动在 `.wenshan-home/settings.yaml` 里写一条
+ * `locale.preference`。已经存在的偏好（教师自己切过语言）不动。
+ */
+export function preferredLocale(env = process.env) {
+  const raw = String(env.WENSHAN_LOCALE || '').trim().toLowerCase()
+  return raw === 'en' ? 'en' : DEFAULT_LOCALE
+}
+
+/**
+ * 在状态目录里补一条语言偏好，保留文件里的其它设置。
+ * @returns {{file: string, changed: boolean, reason: string}}
+ */
+export function ensureLocalePreference(home, locale = DEFAULT_LOCALE) {
+  const file = path.join(home, 'settings.yaml')
+  let text = ''
+  try {
+    text = fs.readFileSync(file, 'utf8')
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+  if (/^\s*locale\s*:/m.test(text)) return { file, changed: false, reason: '已有语言设置' }
+  const block = `locale:\n  preference: ${locale}\n`
+  fs.mkdirSync(home, { recursive: true })
+  fs.writeFileSync(file, text.trim() ? `${text.replace(/\s*$/, '')}\n\n${block}` : block, { mode: 0o600 })
+  return { file, changed: true, reason: `默认语言 ${locale}` }
 }
 
 /** 对外展示的入口地址。绑定 0.0.0.0 时给人看的仍是回环地址。 */
@@ -131,6 +164,11 @@ export async function launch({
   process.stdout.write('\n')
 
   fs.mkdirSync(home, { recursive: true })
+  try {
+    ensureLocalePreference(home, preferredLocale())
+  } catch (error) {
+    warn(`没有写入默认语言偏好：${error instanceof Error ? error.message : error}`)
+  }
   // 运行时按自己的契约读取状态目录变量；对产品层只暴露 WENSHAN_HOME。
   const env = { ...process.env, DSH_HOME: home }
   const child = spawn(process.execPath, args, { cwd: root, env, stdio: 'inherit' })

@@ -18,6 +18,8 @@ services:
     environment:
       TZ: Asia/Shanghai
       WENSHAN_OPEN: "0"
+      # 界面默认中文；要英文界面改成 en
+      # WENSHAN_LOCALE: "zh"
       # 反向代理用域名访问时，把域名加进浏览器信任栅栏（逗号分隔），例如：
       # WENSHAN_TRUSTED_HOSTS: "wenshan.example.com"
     volumes:
