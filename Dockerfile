@@ -23,7 +23,7 @@ RUN apt-get update \
         ca-certificates tini \
     && rm -rf /var/lib/apt/lists/*
 
-# 运行时用 pnpm 工作区构建，版本与 vendor/runtime/package.json 的 packageManager 对齐。
+# 运行时用 pnpm 工作区构建，版本与 runtime/package.json 的 packageManager 对齐。
 RUN npm install -g pnpm@11.7.0
 
 WORKDIR /app
@@ -35,7 +35,7 @@ COPY scripts ./scripts
 COPY config ./config
 COPY agents ./agents
 COPY packages ./packages
-COPY vendor ./vendor
+COPY runtime ./runtime
 COPY data ./data
 COPY deploy/docker-entrypoint.sh /usr/local/bin/wenshan-entrypoint
 COPY README.md LICENSE NOTICE.md ./

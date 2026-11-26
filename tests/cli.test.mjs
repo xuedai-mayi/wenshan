@@ -169,13 +169,13 @@ try {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'wenshan-cli-test-'))
   try {
     assert(!vendorBuilt(fixture), '空目录不应判定为已构建')
-    fs.mkdirSync(path.join(fixture, 'vendor/runtime/apps/cli/lib'), { recursive: true })
-    fs.writeFileSync(path.join(fixture, 'vendor/runtime/apps/cli/lib/bin.js'), '')
-    fs.writeFileSync(path.join(fixture, 'vendor/runtime/apps/cli/lib/../.keep'), '')
+    fs.mkdirSync(path.join(fixture, 'runtime/apps/cli/lib'), { recursive: true })
+    fs.writeFileSync(path.join(fixture, 'runtime/apps/cli/lib/bin.js'), '')
+    fs.writeFileSync(path.join(fixture, 'runtime/apps/cli/lib/../.keep'), '')
     assert(!vendorBuilt(fixture), '缺少 schemastery / node_modules 时不应判定为已构建')
-    fs.mkdirSync(path.join(fixture, 'vendor/runtime/vendor/schemastery/lib'), { recursive: true })
-    fs.writeFileSync(path.join(fixture, 'vendor/runtime/vendor/schemastery/lib/index.mjs'), '')
-    fs.mkdirSync(path.join(fixture, 'vendor/runtime/node_modules'), { recursive: true })
+    fs.mkdirSync(path.join(fixture, 'runtime/vendor/schemastery/lib'), { recursive: true })
+    fs.writeFileSync(path.join(fixture, 'runtime/vendor/schemastery/lib/index.mjs'), '')
+    fs.mkdirSync(path.join(fixture, 'runtime/node_modules'), { recursive: true })
     assert(vendorBuilt(fixture), '三件套齐全时应判定为已构建')
 
     assert(!intakeInstalled(fixture), '页面依赖未装时不应判定为已装')
@@ -204,7 +204,7 @@ try {
     }
   }
 
-  console.log('命令行测试通过：环境探测、挂载层渲染、端口顺延、浏览器就绪判定、安装状态与 vendor 引用')
+  console.log('命令行测试通过：环境探测、挂载层渲染、端口顺延、浏览器就绪判定、安装状态与运行时引用')
 } catch (error) {
   console.error(`命令行测试失败：${error.message}`)
   process.exit(1)

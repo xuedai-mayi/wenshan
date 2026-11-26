@@ -15,7 +15,7 @@ import path from 'node:path'
 // 用运行时自己的消息构造器：它补齐 id 并把 source 冻结成合法形状。
 // 手搓 {role:'assistant'} 会缺 source，运行时读 source.kind 时直接 TypeError——
 // 这个坑在真机上踩过一次，别改回去。
-import { createUserMessage } from '../../../vendor/runtime/packages/llm/llm/lib/index.js'
+import { createUserMessage } from '../../../runtime/packages/llm/llm/lib/index.js'
 
 // —— 与 packages/georag/src/knowledge-store.js 的 normalizeNode 保持一致 ——
 const NODE_KINDS = new Set(['讲解点', '地点', '概念', '物种', '气象', '每日', '主线'])

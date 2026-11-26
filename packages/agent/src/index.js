@@ -1,6 +1,6 @@
 // 问山业务插件。mode=build 提供“来源—草稿—确认—发布”写入链路；
 // mode=qa 只提供已发布知识图谱的只读问答工具。
-import { defineTool } from '../../../vendor/runtime/packages/core/tools/lib/index.js'
+import { defineTool } from '../../../runtime/packages/core/tools/lib/index.js'
 import { buildKnowledgeToolDefs } from './build-tools.js'
 import { buildGapManageToolDefs, buildGapReportToolDefs } from './gap-tools.js'
 import { buildToolDefs } from './tools.js'

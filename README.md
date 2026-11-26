@@ -15,6 +15,9 @@
 
 > 产品落地页：[site/index.html](site/index.html) · 用户手册：[docs/product/user-guide.md](docs/product/user-guide.md) · 部署指南：[docs/deploy.md](docs/deploy.md)
 
+> 仓库已从 `dsh-wenshan` 更名为 `wenshan`。旧 clone 更新一下远端即可，数据目录与命令都不变：
+> `git remote set-url origin https://github.com/xuedai-mayi/wenshan.git`。
+
 ---
 
 ## 目录
@@ -106,18 +109,18 @@ Windows、macOS、Linux 走同一条路径：只有一个入口 `wenshan`（`bin
 | Python 探测 | `python3.11` → `py -3.11` → `python3` → `python`，可用 `WENSHAN_PYTHON=python3.12` 钉住 |
 | Python 依赖 | 装在项目内 `.venv`，不碰系统环境（macOS 的 PEP 668 会挡住全局 pip） |
 | 依赖分组 | `requirements-core`（必需）+ `audio` / `gis` / `tools`（缺轮子只降级对应格式） |
-| 运行状态 | 写在项目内 `.wenshan-home`，不读也不写用户的 `~/.dsh`（可用 `WENSHAN_HOME` 改） |
+| 运行状态 | 写在项目内 `.wenshan-home`，不读写系统里其它服务的状态目录（可用 `WENSHAN_HOME` 改） |
 | 端口 | 默认 `3080`，被其它服务占用时自动顺延并打印实际地址 |
 
 ## 快速开始
 
 ```bash
-git clone <你的仓库地址>
+git clone https://github.com/xuedai-mayi/wenshan.git
 cd <仓库目录>
 npm start         # 首次运行会先问「现在安装？」，回车即可；也可先跑 npm run setup
 ```
 
-想把它当成一个常驻命令（和 `claude`、`dsh` 一样从任何目录调用）：
+想把它当成一个常驻命令（在任何目录直接调用）：
 
 ```bash
 npm link          # 把 bin 链接进全局 prefix
@@ -246,7 +249,7 @@ site/                    产品落地页
 tests/                   存储、冒烟、产品链路、运维层与浏览器验收测试
 docs/                    架构、产品文档、部署指南、评测报告与截图
 data/                    可公开的基础检索数据
-vendor/runtime/          随仓库分发的 agent 运行时源码
+runtime/                 随仓库分发的 agent 运行时源码
 ```
 
 ## 开发与测试

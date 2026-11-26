@@ -11,7 +11,7 @@
 
 [Unit]
 Description=Wenshan — 地理野外实习自成长知识助手
-Documentation=https://github.com/xuedai-mayi/dsh-wenshan
+Documentation=https://github.com/xuedai-mayi/wenshan
 After=network-online.target
 Wants=network-online.target
 

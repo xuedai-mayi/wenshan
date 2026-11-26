@@ -1,7 +1,7 @@
 {
   "name": "wenshan-agent",
   "description": "问山：地理野外实习自成长智能助手的双业务插件：知识演化审核发布与野外助教只读服务",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "src/index.js",
@@ -15,9 +15,6 @@
   ],
   "license": "MIT",
   "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.1-rc.1",
-    "@deepseek-ai/dsh-tools": ">=0.0.1-rc.1",
-    "@deepseek-ai/dsh-system-prompt": ">=0.0.1-rc.1",
-    "wenshan-georag": ">=0.1.0"
+    "wenshan-georag": ">=1.0.0"
   }
 }

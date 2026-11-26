@@ -29,8 +29,8 @@
 ### 三步启动
 
 ```bash
-git clone <仓库地址>
-cd dsh-wenshan
+git clone https://github.com/xuedai-mayi/wenshan.git
+cd wenshan
 npm start
 ```
 

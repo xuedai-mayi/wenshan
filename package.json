@@ -28,7 +28,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xuedai-mayi/dsh-wenshan.git"
+    "url": "git+https://github.com/xuedai-mayi/wenshan.git"
   },
   "keywords": [
     "geo-rag",
@@ -40,8 +40,8 @@
     "wenshan",
     "gis"
   ],
-  "homepage": "https://github.com/xuedai-mayi/dsh-wenshan#readme",
+  "homepage": "https://github.com/xuedai-mayi/wenshan#readme",
   "bugs": {
-    "url": "https://github.com/xuedai-mayi/dsh-wenshan/issues"
+    "url": "https://github.com/xuedai-mayi/wenshan/issues"
   }
 }

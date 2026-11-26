@@ -18,7 +18,7 @@
 ## A. 本机（默认形态）
 
 ```bash
-git clone <仓库地址> && cd dsh-wenshan
+git clone https://github.com/xuedai-mayi/wenshan.git && cd wenshan
 npm start            # 首次会问是否安装，回车即可
 ```
 
@@ -39,7 +39,7 @@ sudo chown -R wenshan:wenshan /opt/wenshan /var/backups/wenshan
 ### 2. 放代码并安装
 
 ```bash
-sudo -u wenshan git clone <仓库地址> /opt/wenshan
+sudo -u wenshan git clone https://github.com/xuedai-mayi/wenshan.git /opt/wenshan
 sudo -u wenshan bash -lc 'cd /opt/wenshan && npm run setup -- --yes'
 sudo -u wenshan bash -lc 'cd /opt/wenshan && npm run doctor'
 ```

@@ -14,13 +14,13 @@ export const DEFAULT_HOST = '127.0.0.1'
 /**
  * 运行时状态目录（会话、凭据、profile、存储）。
  *
- * 默认放在仓库内的 `.wenshan-home`，而不是共享用户的 `~/.dsh`：内置运行时是随包分发的
- * 快照，解读规则可能与用户本机装的 dsh 不同版本（实测旧快照会拒绝新版写出的
- * credentials.yaml），共享目录会让「问山起不来」变成「用户的 dsh 状态有问题」。隔离之后
- * 这个目录删掉即可重置，也不与 3080 上跑着的 dsh 互相污染。
+ * 默认放在仓库内的 `.wenshan-home`，而不是共享用户主目录：内置运行时是随包分发的快照，
+ * 状态格式与系统里其它服务未必兼容（实测旧快照会拒绝新版写出的 credentials.yaml），
+ * 共享目录会让「问山起不来」变成别人的问题。隔离之后这个目录删掉即可重置，
+ * 也不会和同机 3080 上跑着的其它服务互相污染。
  *
- * 覆盖用 `WENSHAN_HOME`。刻意不读 DSH_HOME：从 dsh 会话里启动问山时，宿主的 DSH_HOME
- * 会泄漏进来，等于又把两个产品绑回同一个目录（实测就会撞上版本不兼容的凭据文件）。
+ * 覆盖用 `WENSHAN_HOME`。启动器只为本进程设置运行时读取的状态变量，不继承宿主的值：
+ * 否则从别的 agent 会话里启动问山时，宿主的状态目录会泄漏进来，两个产品又绑回同一目录。
  */
 export function resolveHome(root, env = process.env) {
   return env.WENSHAN_HOME ?? path.join(root, '.wenshan-home')
@@ -100,7 +100,7 @@ export async function launch({
   root, python, port, host, passthrough = [], dryRun = false, overlayKeep = false, open = true,
 }) {
   const home = resolveHome(root)
-  const cliPath = path.join(root, 'vendor', 'runtime', 'apps', 'cli', 'lib', 'bin.js')
+  const cliPath = path.join(root, 'runtime', 'apps', 'cli', 'lib', 'bin.js')
   const overlay = createOverlay({ root, python, keep: overlayKeep })
   const args = [cliPath, 'web', '--patch', overlay.path]
   if (port != null) args.push('--port', String(port))
@@ -125,12 +125,13 @@ export async function launch({
   bullet(python?.found
     ? `Python ${python.version}（${python.cmd}）负责文档 / 音频 / GIS 提取`
     : '未找到 Python：只能收录纯文本，其余格式提取会降级')
-  bullet(`运行状态目录 ${path.relative(root, home) || home}（删掉即重置，不与本机 dsh 共用）`)
+  bullet(`运行状态目录 ${path.relative(root, home) || home}（删掉即重置，不与其它服务共用）`)
   bullet(`首次使用请在 ${c.bold('设置 > 模型')} 里配置模型与 API Key`)
   bullet('按 Ctrl+C 停止服务')
   process.stdout.write('\n')
 
   fs.mkdirSync(home, { recursive: true })
+  // 运行时按自己的契约读取状态目录变量；对产品层只暴露 WENSHAN_HOME。
   const env = { ...process.env, DSH_HOME: home }
   const child = spawn(process.execPath, args, { cwd: root, env, stdio: 'inherit' })
 

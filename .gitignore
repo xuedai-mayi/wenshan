@@ -17,7 +17,7 @@
 # Dependencies and generated builds
 **/node_modules/
 **/dist/
-vendor/runtime/**/lib/
+runtime/**/lib/
 **/*.tsbuildinfo
 **/__pycache__/
 **/*.py[cod]

@@ -1,7 +1,7 @@
 {
   "name": "wenshan-georag",
   "description": "问山：地理野外实习自成长智能助手的 GeoRAG、不可变知识事件日志与增量图谱热更新服务",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "main": "src/index.js",
@@ -13,12 +13,5 @@
   "files": [
     "src"
   ],
-  "license": "MIT",
-  "peerDependencies": {
-    "@deepseek-ai/cordis": ">=4.0.1-rc.1"
-  },
-  "dependencies": {
-    "@deepseek-ai/cordis": "^4.0.1-rc.1",
-    "@deepseek-ai/schemastery": "^3.18.1"
-  }
+  "license": "MIT"
 }

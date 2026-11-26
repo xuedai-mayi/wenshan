@@ -221,7 +221,7 @@ export async function waitForListening(port, host = '127.0.0.1', {
 
 /**
  * 从 start 开始找第一个空闲端口。默认顺延 20 个，避免和同机其它 agent 服务（例如占用
- * 3080 的 dsh）互撞。返回 { port, shifted }。
+ * 3080 上其它 agent 服务）互撞。返回 { port, shifted }。
  */
 export async function findFreePort(start, { host = '127.0.0.1', limit = 20, probe = portFree } = {}) {
   for (let offset = 0; offset < limit; offset++) {
@@ -235,9 +235,9 @@ export async function findFreePort(start, { host = '127.0.0.1', limit = 20, prob
 /** 内置运行时是否已构建：CLI 入口、运行时依赖树、业务包硬依赖的 schemastery 都在。 */
 export function vendorBuilt(root) {
   const relative = [
-    'vendor/runtime/apps/cli/lib/bin.js',
-    'vendor/runtime/vendor/schemastery/lib/index.mjs',
-    'vendor/runtime/node_modules',
+    'runtime/apps/cli/lib/bin.js',
+    'runtime/vendor/schemastery/lib/index.mjs',
+    'runtime/node_modules',
   ]
   return relative.every(entry => fs.existsSync(path.join(root, entry)))
 }

@@ -40,7 +40,7 @@ export function buildPlan({ root, python, force = false }) {
 
   steps.push({
     id: 'runtime',
-    title: '构建内置运行时（vendor/runtime）',
+    title: '构建内置运行时（runtime）',
     why: ctx => {
       if (vendorBuilt(root) && !force) return '已构建，跳过'
       const pnpm = detectPnpm()
@@ -51,7 +51,7 @@ export function buildPlan({ root, python, force = false }) {
       return false
     },
     async run(ctx) {
-      const cwd = path.join(root, 'vendor', 'runtime')
+      const cwd = path.join(root, 'runtime')
       detail(`pnpm ${ctx.pnpm.version} · ${cwd}`)
       let result = await spawnInherit(ctx.pnpm.cmd, ['install', '--frozen-lockfile'], { cwd, env: vendorEnv() })
       if (result.code !== 0) {
@@ -145,7 +145,7 @@ export function buildPlan({ root, python, force = false }) {
       // 重新探测：上一步刚创建/补齐了 .venv，运行期应当用 venv 里的解释器。
       const overlay = createOverlay({ root, python: detectPython({ root }) })
       try {
-        const cli = path.join(root, 'vendor', 'runtime', 'apps', 'cli', 'lib', 'bin.js')
+        const cli = path.join(root, 'runtime', 'apps', 'cli', 'lib', 'bin.js')
         const result = await new Promise(resolve => {
           const child = spawn(process.execPath, [cli, 'web', '--patch', overlay.path, '--dump-config'], {
             cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'],

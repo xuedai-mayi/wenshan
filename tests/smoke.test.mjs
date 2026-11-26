@@ -2,10 +2,10 @@
 // 断言六工具 schema 已注册、执行返回通过 schema 校验的 canonical 值。
 // 运行：node tests/smoke.test.mjs（仓库根目录下）
 import { fileURLToPath } from 'node:url'
-import { Context } from '../vendor/runtime/vendor/cordis/lib/index.js'
-import SystemPrompt from '../vendor/runtime/packages/core/system-prompt/lib/index.js'
-import ToolRuntime from '../vendor/runtime/packages/core/tools/lib/index.js'
-import { CallId } from '../vendor/runtime/packages/llm/llm/lib/index.js'
+import { Context } from '../runtime/vendor/cordis/lib/index.js'
+import SystemPrompt from '../runtime/packages/core/system-prompt/lib/index.js'
+import ToolRuntime from '../runtime/packages/core/tools/lib/index.js'
+import { CallId } from '../runtime/packages/llm/llm/lib/index.js'
 import * as georag from '../packages/georag/src/index.js'
 import * as wenshan from '../packages/agent/src/index.js'
 

@@ -5,7 +5,7 @@
 ## 开发环境
 
 ```bash
-git clone <仓库地址> && cd dsh-wenshan
+git clone https://github.com/xuedai-mayi/wenshan.git && cd wenshan
 npm install -g pnpm
 npm run setup          # 构建内置运行时 + 页面依赖 + Python 提取链
 npm run doctor         # 缺什么会直接说
@@ -23,10 +23,12 @@ Node 22.19+；Python 3.11 只在处理文档/录音/GIS 时需要。
 | `packages/agent` | 工具注册与两种模式的提示词 | 存储实现 |
 | `packages/intake` | HTTP 接口与三个页面 | 检索算法 |
 | `scripts/lib` | 安装、启动、体检、运维命令 | 业务语义 |
-| `vendor/runtime` | 随包分发的运行时快照 | 业务代码（改这里等于改上游） |
+| `runtime` | 随包分发的运行时快照 | 业务代码（改这里等于改上游） |
 | `agents/` | 两种模式的 preset | 工具实现 |
 
-两条硬约束：
+三条硬约束：
+
+0. **运行时的插件标识不要改**：`agents/*/agent.cordis.yml` 里的 `name` 是内置运行时的插件契约（如 persona 插件），改了就加载不到；产品层要改名只能改业务包的包名与路径，不能改运行时内部标识。
 
 1. **工具权限按模式注册**：野外助教只读 + 登记缺口；知识演化才可写。不要把写工具加进只读模式。
 2. **发布门禁在存储层**：必须收到完整口令 `确认发布 draft-xxxxxxxx`。不要在提示词或 UI 层"优化"掉它。
@@ -54,7 +56,7 @@ npm run preflight            # 发版前必跑
 
 ## 不接受的改动
 
-- 把状态目录写回 `~/.dsh` 或系统目录；
+- 把状态目录写回用户主目录或系统目录；
 - 引入需要联网才能启动的运行时依赖；
 - 绕过草稿审核、自动发布；
 - 在仓库里提交真实凭据、学生照片、未授权的第三方素材。

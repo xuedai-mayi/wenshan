@@ -211,7 +211,7 @@ export async function cmdDoctor({ root, options }) {
   if (runtimeOk) {
     const overlay = createOverlay({ root, python })
     try {
-      const cli = path.join(root, 'vendor', 'runtime', 'apps', 'cli', 'lib', 'bin.js')
+      const cli = path.join(root, 'runtime', 'apps', 'cli', 'lib', 'bin.js')
       const result = await new Promise(resolve => {
         const child = spawn(process.execPath, [cli, 'web', '--patch', overlay.path, '--dump-config'], {
           cwd: root, env: process.env, stdio: ['ignore', 'pipe', 'pipe'],
